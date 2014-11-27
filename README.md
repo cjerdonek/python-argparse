@@ -13,6 +13,10 @@ Requirements
 Testing
 -------
 
+Setup:
+
+    $ pip install coveralls
+
 From the repo root:
 
     $ python -m unittest
