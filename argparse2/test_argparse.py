@@ -9,7 +9,7 @@ import sys
 import textwrap
 import tempfile
 import unittest
-import argparse
+from argparse2 import argparse
 
 from io import StringIO
 
