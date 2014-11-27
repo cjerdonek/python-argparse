@@ -1,0 +1,13 @@
+language: python
+python:
+  - "3.4"
+# command to install dependencies
+install:
+  # Travis-specific dependencies
+  - pip install coveralls
+# command to run tests
+script:
+  - coverage run --source=argparse2 -m unittest
+after_script:
+  - coverage report
+  - coveralls
