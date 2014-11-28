@@ -268,9 +268,6 @@ class HelpFormatter(object):
         self._level = 0
         self._action_max_length = 0
 
-        self._root_section = _Section(self, None)
-        self._current_section = self._root_section
-
         self._whitespace_matcher = _re.compile(r'\s+')
         self._long_break_matcher = _re.compile(r'\n\n\n+')
 
@@ -289,24 +286,23 @@ class HelpFormatter(object):
     # ========================
     # Message building methods
     # ========================
-    def start_section(self, heading):
+    def start_section(self, current_section, heading):
         self._indent()
-        section = _Section(self, self._current_section, heading)
-        _add_item(self._current_section, section.format_help, [])
-        self._current_section = section
+        new_section = _Section(self, current_section, heading)
+        _add_item(current_section, new_section.format_help, [])
+        return new_section
 
     def end_section(self):
-        self._current_section = self._current_section.parent
         self._dedent()
 
-    def add_text(self, text):
+    def add_text(self, section, text):
         if text is not SUPPRESS and text is not None:
-            _add_item(self._current_section, self._format_text, [text])
+            _add_item(section, self._format_text, [text])
 
-    def add_usage(self, usage, actions, groups, prefix=None):
+    def add_usage(self, section, usage, actions, groups, prefix=None):
         if usage is not SUPPRESS:
             args = usage, actions, groups, prefix
-            _add_item(self._current_section, self._format_usage, args)
+            _add_item(section, self._format_usage, args)
 
     def _get_action_length(self, action):
         """Return the max "invocation" length for an action."""
@@ -318,22 +314,22 @@ class HelpFormatter(object):
 
         return max([len(s) for s in invocations])
 
-    def add_argument(self, action):
+    def add_argument(self, section, action):
         if action.help is SUPPRESS:
             return
         action_length = self._get_action_length(action)
         self._action_max_length = max(self._action_max_length,
                                       action_length + self._current_indent)
-        _add_item(self._current_section, self._format_action, [action])
+        _add_item(section, self._format_action, [action])
 
-    def add_arguments(self, actions):
+    def add_arguments(self, section, actions):
         for action in actions:
-            self.add_argument(action)
+            self.add_argument(section, action)
 
-    def add_action_group(self, group):
-        self.start_section(group.title)
-        self.add_text(group.description)
-        self.add_arguments(group._group_actions)
+    def add_action_group(self, current_section, group):
+        section = self.start_section(current_section, group.title)
+        self.add_text(section, group.description)
+        self.add_arguments(section, group._group_actions)
         self.end_section()
 
     # =======================
@@ -363,8 +359,12 @@ class HelpFormatter(object):
 
         return "".join(parts)
 
-    def format_help(self):
-        help = self._root_section.format_help()
+    def format_help(self, root_section):
+        """
+        Arguments:
+          root_section: a _Section object.
+        """
+        help = root_section.format_help()
         if help:
             help = self._long_break_matcher.sub('\n\n', help)
             help = help.strip('\n') + '\n'
@@ -1130,9 +1130,9 @@ class _VersionAction(Action):
         version = self.version
         if version is None:
             version = parser.version
-        formatter = parser._get_formatter()
-        formatter.add_text(version)
-        parser._print_message(formatter.format_help(), _sys.stdout)
+        formatter, root_section = parser._get_formatter()
+        formatter.add_text(root_section, version)
+        parser._print_message(formatter.format_help(root_section), _sys.stdout)
         parser.exit()
 
 
@@ -1461,8 +1461,9 @@ class _ActionsContainer(object):
 
         # raise an error if the metavar does not match the type
         if hasattr(self, "_get_formatter"):
+            formatter, root_section = self._get_formatter()
             try:
-                self._get_formatter()._format_args(action, None)
+                formatter._format_args(action, None)
             except TypeError:
                 raise ValueError("length of metavar tuple does not match nargs")
 
@@ -1819,11 +1820,11 @@ class ArgumentParser(_AttributeHolder, _ActionsContainer):
         # prog defaults to the usage message of this parser, skipping
         # optional arguments and with no "usage:" prefix
         if kwargs.get('prog') is None:
-            formatter = self._get_formatter()
+            formatter, root_section = self._get_formatter()
             positionals = self._get_positional_actions()
             groups = self._mutually_exclusive_groups
-            formatter.add_usage(self.usage, positionals, groups, '')
-            kwargs['prog'] = formatter.format_help().strip()
+            formatter.add_usage(root_section, self.usage, positionals, groups, '')
+            kwargs['prog'] = formatter.format_help(root_section).strip()
 
         action = _SubParsersAction(option_strings=[], **kwargs)
         self._subparsers._add_action(action)
@@ -2440,37 +2441,39 @@ class ArgumentParser(_AttributeHolder, _ActionsContainer):
     # Help-formatting methods
     # =======================
     def format_usage(self):
-        formatter = self._get_formatter()
-        formatter.add_usage(self.usage, self._actions,
+        formatter, root_section = self._get_formatter()
+        formatter.add_usage(root_section, self.usage, self._actions,
                             self._mutually_exclusive_groups)
-        return formatter.format_help()
+        return formatter.format_help(root_section)
 
     def format_help2(self):
-        formatter = self._get_formatter()
+        formatter, root_section = self._get_formatter()
         return formatter.format_help2(self)
 
     def format_help(self):
-        formatter = self._get_formatter()
+        formatter, root_section = self._get_formatter()
 
         # usage
-        formatter.add_usage(self.usage, self._actions,
+        formatter.add_usage(root_section, self.usage, self._actions,
                             self._mutually_exclusive_groups)
 
         # description
-        formatter.add_text(self.description)
+        formatter.add_text(root_section, self.description)
 
         # positionals, optionals and user-defined groups
         for action_group in self._action_groups:
-            formatter.add_action_group(action_group)
+            formatter.add_action_group(root_section, action_group)
 
         # epilog
-        formatter.add_text(self.epilog)
+        formatter.add_text(root_section, self.epilog)
 
         # determine help from format above
-        return formatter.format_help()
+        return formatter.format_help(root_section)
 
     def _get_formatter(self):
-        return self.formatter_class(prog=self.prog)
+        """Return the formatter object and a root section to start with."""
+        formatter = self.formatter_class(prog=self.prog)
+        return formatter, _Section(formatter, None)
 
     # =====================
     # Help-printing methods
