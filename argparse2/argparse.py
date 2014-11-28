@@ -141,6 +141,61 @@ def _ensure_value(namespace, name, value):
 # Formatting Help
 # ===============
 
+class _SectionNode(object):
+
+    def __init__(self, heading, description):
+        self.heading = heading
+        self.description = description
+        self.children = []
+
+
+class _TraverserBase(object):
+
+    def on_root(self, parser):
+        raise NotImplementedError()
+
+    def on_action_group(self, group):
+        raise NotImplementedError()
+
+    def traverse(self, parser):
+        self.on_root(parser)
+        for action_group in parser._action_groups:
+            self.on_action_group(action_group)
+        #     formatter.add_action_group(action_group)
+        # formatter.add_text(self.epilog)
+
+
+class _FormatterTraverser(_TraverserBase):
+
+    def on_root(self, parser):
+        formatter = self.formatter
+        parts = self.parts
+
+        parts.append(formatter._format_usage(parser.usage, parser._actions,
+                                             parser._mutually_exclusive_groups, prefix=None))
+        parts.append(parser.description)
+
+    def on_action_group(self, group):
+        formatter = self.formatter
+        parts = self.parts
+
+        heading = group.title
+        formatter._indent()
+        section = HelpFormatter._Section(formatter, formatter._current_section, heading)
+        parts.append(section.format_help())
+
+
+        # self.start_section(group.title)
+        # self.add_text(group.description)
+        # self.add_arguments(group._group_actions)
+        # self.end_section()
+
+    def __init__(self, formatter):
+        self.parts = []
+        self.formatter = formatter
+
+
+
 class HelpFormatter(object):
     """Formatter for generating usage messages and argument help strings.
 
@@ -194,12 +249,17 @@ class HelpFormatter(object):
     class _Section(object):
 
         def __init__(self, formatter, parent, heading=None):
+            """
+            Arguments:
+              parent: the parent _Section object.
+            """
             self.formatter = formatter
             self.parent = parent
             self.heading = heading
             self.items = []
 
         def format_help(self):
+            """Return a string."""
             # format the indented section
             if self.parent is not None:
                 self.formatter._indent()
@@ -278,6 +338,30 @@ class HelpFormatter(object):
     # =======================
     # Help-formatting methods
     # =======================
+
+    def format_section(self, section, parts):
+        parts.append(section.title)
+
+    def format_help2(self, parser):
+        traverser = _FormatterTraverser(self)
+        traverser.traverse(parser)
+        parts = traverser.parts
+        return "".join(parts)
+
+        parts = []
+        parts.append(self._format_usage(parser.usage, parser._actions,
+                                        parser._mutually_exclusive_groups, prefix=None))
+        parts.append(parser.description)
+        # positionals, optionals and user-defined groups
+        for action_group in parser._action_groups:
+            self.format_section(action_group, parts)
+        # # epilog
+        # formatter.add_text(self.epilog)
+        # # determine help from format above
+        # return formatter.format_help()
+
+        return "".join(parts)
+
     def format_help(self):
         help = self._root_section.format_help()
         if help:
@@ -2359,6 +2443,10 @@ class ArgumentParser(_AttributeHolder, _ActionsContainer):
         formatter.add_usage(self.usage, self._actions,
                             self._mutually_exclusive_groups)
         return formatter.format_help()
+
+    def format_help2(self):
+        formatter = self._get_formatter()
+        return formatter.format_help2(self)
 
     def format_help(self):
         formatter = self._get_formatter()
