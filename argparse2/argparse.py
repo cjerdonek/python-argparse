@@ -224,12 +224,7 @@ class _Section(object):
         if not item_help:
             return ''
 
-        # add the heading if the section was non-empty
-        if self.heading is not SUPPRESS and self.heading is not None:
-            current_indent = formatter._current_indent
-            heading = '%*s%s:\n' % (current_indent, '', self.heading)
-        else:
-            heading = ''
+        heading = formatter.format_section_heading(self)
 
         # join the section-initial newline, the heading and the help
         return join(['\n', heading, item_help, '\n'])
@@ -334,6 +329,11 @@ class HelpFormatter(object):
     # =======================
     # Help-formatting methods
     # =======================
+
+    def format_section_heading(self, section):
+        if section.heading is SUPPRESS or section.heading is None:
+            return ''
+        return '%*s%s:\n' % (self._current_indent, '', section.heading)
 
     def format_section(self, section, parts):
         parts.append(section.title)
