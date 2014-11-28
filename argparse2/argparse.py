@@ -1349,6 +1349,7 @@ class _ActionsContainer(object):
         return self._add_action(action)
 
     def add_argument_group(self, *args, **kwargs):
+        """Create and return an _ArgumentGroup instance."""
         group = _ArgumentGroup(self, *args, **kwargs)
         self._action_groups.append(group)
         return group
@@ -1595,6 +1596,10 @@ class ArgumentParser(_AttributeHolder, _ActionsContainer):
         - argument_default -- The default value for all arguments
         - conflict_handler -- String indicating how to handle conflicts
         - add_help -- Add a -h/-help option
+
+    Attributes:
+        - _subparsers -- an _ArgumentGroup object if add_subparsers() was
+            was called, otherwise None.
     """
 
     def __init__(self,
@@ -1674,6 +1679,10 @@ class ArgumentParser(_AttributeHolder, _ActionsContainer):
     # Optional/Positional adding methods
     # ==================================
     def add_subparsers(self, **kwargs):
+        """Add a subparsers action.
+
+        Returns a _SubParsersAction instance.
+        """
         if self._subparsers is not None:
             self.error(_('cannot have multiple subparser arguments'))
 
@@ -1696,12 +1705,9 @@ class ArgumentParser(_AttributeHolder, _ActionsContainer):
             formatter.add_usage(self.usage, positionals, groups, '')
             kwargs['prog'] = formatter.format_help().strip()
 
-        # create the parsers action and add it to the positionals list
-        parsers_class = self._pop_action_class(kwargs, 'parsers')
-        action = parsers_class(option_strings=[], **kwargs)
+        action = _SubParsersAction(option_strings=[], **kwargs)
         self._subparsers._add_action(action)
 
-        # return the created parsers action
         return action
 
     def _add_action(self, action):
@@ -2329,6 +2335,7 @@ class ArgumentParser(_AttributeHolder, _ActionsContainer):
         # description
         formatter.add_text(self.description)
 
+        # TODO: define a formatter.add_action_group().
         # positionals, optionals and user-defined groups
         for action_group in self._action_groups:
             formatter.start_section(action_group.title)
