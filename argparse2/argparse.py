@@ -249,23 +249,23 @@ class HelpFormatter(object):
             args = usage, actions, groups, prefix
             self._add_item(self._format_usage, args)
 
+    def _get_action_length(self, action):
+        """Return the max "invocation" length for an action."""
+        # find all invocations
+        get_invocation = self._format_action_invocation
+        invocations = [get_invocation(action)]
+        for subaction in self._iter_indented_subactions(action):
+            invocations.append(get_invocation(subaction))
+
+        return max([len(s) for s in invocations])
+
     def add_argument(self, action):
-        if action.help is not SUPPRESS:
-
-            # find all invocations
-            get_invocation = self._format_action_invocation
-            invocations = [get_invocation(action)]
-            for subaction in self._iter_indented_subactions(action):
-                invocations.append(get_invocation(subaction))
-
-            # update the maximum item length
-            invocation_length = max([len(s) for s in invocations])
-            action_length = invocation_length + self._current_indent
-            self._action_max_length = max(self._action_max_length,
-                                          action_length)
-
-            # add the item to the list
-            self._add_item(self._format_action, [action])
+        if action.help is SUPPRESS:
+            return
+        action_length = self._get_action_length(action)
+        self._action_max_length = max(self._action_max_length,
+                                      action_length + self._current_indent)
+        self._add_item(self._format_action, [action])
 
     def add_arguments(self, actions):
         for action in actions:
