@@ -538,7 +538,7 @@ class HelpFormatter(object):
     def _format_action_invocation(self, action):
         if not action.option_strings:
             default = self._get_default_metavar_for_positional(action)
-            metavar = self._format_metavar(action, default)
+            metavar = self._make_metavar(action, default)
             return metavar
 
         parts = []
@@ -556,7 +556,7 @@ class HelpFormatter(object):
 
         return ', '.join(parts)
 
-    def _format_metavar(self, action, default_metavar):
+    def _make_metavar(self, action, default_metavar):
         if action.metavar is not None:
             metavar = action.metavar
         elif action.choices is not None:
@@ -573,7 +573,7 @@ class HelpFormatter(object):
         return (obj, ) * tuple_size
 
     def _format_args(self, action, default_metavar):
-        metavar = self._format_metavar(action, default_metavar)
+        metavar = self._make_metavar(action, default_metavar)
         if action.nargs is None:
             result = '%s' % self._to_tuple(metavar, 1)
         elif action.nargs == OPTIONAL:
