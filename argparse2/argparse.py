@@ -487,6 +487,7 @@ class HelpFormatter(object):
         return self._fill_text(text, text_width, indent) + '\n\n'
 
     def _format_action(self, action):
+        """Format an Action object for help display."""
         # determine the required width and the entry label
         help_position = min(self._action_max_length + 2,
                             self._max_help_position)
@@ -537,7 +538,7 @@ class HelpFormatter(object):
     def _format_action_invocation(self, action):
         if not action.option_strings:
             default = self._get_default_metavar_for_positional(action)
-            metavar, = self._metavar_formatter(action, default)(1)
+            metavar = self._format_metavar(action, default)
             return metavar
 
         else:
@@ -558,14 +559,18 @@ class HelpFormatter(object):
 
             return ', '.join(parts)
 
-    def _metavar_formatter(self, action, default_metavar):
+    def _format_metavar(self, action, default_metavar):
         if action.metavar is not None:
-            result = action.metavar
+            metavar = action.metavar
         elif action.choices is not None:
             choice_strs = [str(choice) for choice in action.choices]
-            result = '{%s}' % ','.join(choice_strs)
+            metavar = '{%s}' % ','.join(choice_strs)
         else:
-            result = default_metavar
+            metavar = default_metavar
+        return metavar
+
+    def _metavar_formatter(self, action, default_metavar):
+        result = self._format_metavar(action, default_metavar)
 
         def format(tuple_size):
             if isinstance(result, tuple):
