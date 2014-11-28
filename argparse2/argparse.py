@@ -528,7 +528,8 @@ class HelpFormatter(object):
 
         # if there are any sub-actions, add their help as well
         for subaction in self._iter_indented_subactions(action):
-            parts.append(self._format_action(subaction))
+            formatted = self._format_action(subaction)
+            parts.append(formatted)
 
         # return a single string
         return self._join_parts(parts)
@@ -1070,7 +1071,7 @@ class _SubParsersAction(Action):
         self._prog_prefix = prog
         self._parser_class = parser_class
         self._name_parser_map = _collections.OrderedDict()
-        self._choices_actions = []
+        self._subactions = []
 
         super(_SubParsersAction, self).__init__(
             option_strings=option_strings,
@@ -1091,7 +1092,7 @@ class _SubParsersAction(Action):
         if 'help' in kwargs:
             help = kwargs.pop('help')
             choice_action = self._ChoicesPseudoAction(name, aliases, help)
-            self._choices_actions.append(choice_action)
+            self._subactions.append(choice_action)
 
         # create the parser and add it to the map
         parser = self._parser_class(**kwargs)
@@ -1103,8 +1104,9 @@ class _SubParsersAction(Action):
 
         return parser
 
+    # This is used only for help formatting.
     def _get_subactions(self):
-        return self._choices_actions
+        return self._subactions
 
     def __call__(self, parser, namespace, values, option_string=None):
         parser_name = values[0]
