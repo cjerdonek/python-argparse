@@ -342,7 +342,7 @@ class HelpFormatter(object):
 
         return "".join(parts)
 
-    def format_help(self, root_section):
+    def format_root_section(self, root_section):
         """
         Arguments:
           root_section: a _SectionNode object.
@@ -352,6 +352,16 @@ class HelpFormatter(object):
             help = self._long_break_matcher.sub('\n\n', help)
             help = help.strip('\n') + '\n'
         return help
+
+    def format_help(self, root_section, parser):
+        self.add_usage(root_section, parser.usage, parser._actions,
+                            parser._mutually_exclusive_groups)
+        self.add_text(root_section, parser.description)
+        # positionals, optionals and user-defined groups
+        for action_group in parser._action_groups:
+            self.add_action_group(root_section, action_group)
+        self.add_text(root_section, parser.epilog)
+        return self.format_root_section(root_section)
 
     def _join_parts(self, part_strings):
         return ''.join([part
@@ -1115,7 +1125,7 @@ class _VersionAction(Action):
             version = parser.version
         formatter, root_section = parser._get_formatter()
         formatter.add_text(root_section, version)
-        parser._print_message(formatter.format_help(root_section), _sys.stdout)
+        parser._print_message(formatter.format_root_section(root_section), _sys.stdout)
         parser.exit()
 
 
@@ -1807,7 +1817,7 @@ class ArgumentParser(_AttributeHolder, _ActionsContainer):
             positionals = self._get_positional_actions()
             groups = self._mutually_exclusive_groups
             formatter.add_usage(root_section, self.usage, positionals, groups, '')
-            kwargs['prog'] = formatter.format_help(root_section).strip()
+            kwargs['prog'] = formatter.format_root_section(root_section).strip()
 
         action = _SubParsersAction(option_strings=[], **kwargs)
         self._subparsers._add_action(action)
@@ -2427,31 +2437,11 @@ class ArgumentParser(_AttributeHolder, _ActionsContainer):
         formatter, root_section = self._get_formatter()
         formatter.add_usage(root_section, self.usage, self._actions,
                             self._mutually_exclusive_groups)
-        return formatter.format_help(root_section)
-
-    def format_help2(self):
-        formatter, root_section = self._get_formatter()
-        return formatter.format_help2(self)
+        return formatter.format_root_section(root_section)
 
     def format_help(self):
         formatter, root_section = self._get_formatter()
-
-        # usage
-        formatter.add_usage(root_section, self.usage, self._actions,
-                            self._mutually_exclusive_groups)
-
-        # description
-        formatter.add_text(root_section, self.description)
-
-        # positionals, optionals and user-defined groups
-        for action_group in self._action_groups:
-            formatter.add_action_group(root_section, action_group)
-
-        # epilog
-        formatter.add_text(root_section, self.epilog)
-
-        # determine help from format above
-        return formatter.format_help(root_section)
+        return formatter.format_help(root_section, self)
 
     def _get_formatter(self):
         """Return the formatter object and a root section to start with."""
