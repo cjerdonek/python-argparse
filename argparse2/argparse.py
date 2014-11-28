@@ -201,23 +201,22 @@ def _add_item(section, format, args):
 
 class _Section(object):
 
-    def __init__(self, parent, heading=None):
+    def __init__(self, heading=None):
         """
         Arguments:
           parent: the parent _Section object.
         """
-        self.parent = parent
         self.heading = heading
         self.items = []
 
-    def format_help(self, formatter):
+    def format_help(self, formatter, parent=None):
         """Return a string."""
         # format the indented section
-        if self.parent is not None:
+        if parent is not None:
             formatter._indent()
         join = formatter._join_parts
         item_help = join([format(*args) for format, args in self.items])
-        if self.parent is not None:
+        if parent is not None:
             formatter._dedent()
 
         # return nothing if the section was empty
@@ -282,8 +281,8 @@ class HelpFormatter(object):
     # ========================
     def start_section(self, current_section, heading):
         self._indent()
-        new_section = _Section(current_section, heading)
-        _add_item(current_section, new_section.format_help, (self, ))
+        new_section = _Section(heading)
+        _add_item(current_section, new_section.format_help, (self, True))
         return new_section
 
     def end_section(self):
@@ -2472,7 +2471,7 @@ class ArgumentParser(_AttributeHolder, _ActionsContainer):
     def _get_formatter(self):
         """Return the formatter object and a root section to start with."""
         formatter = self.formatter_class(prog=self.prog)
-        return formatter, _Section(None)
+        return formatter, _Section()
 
     # =====================
     # Help-printing methods
