@@ -252,11 +252,13 @@ class HelpFormatter(object):
         # find all invocations
         get_invocation = self._format_action_invocation
         invocations = [get_invocation(action)]
-        for subaction in self._iter_indented_subactions(action):
+        for subaction in self._get_subactions(action):
             invocations.append(get_invocation(subaction))
 
         return max([len(s) for s in invocations])
 
+    # TODO: compute the max length prior to formatting instead of when
+    #  adding arguments.
     def add_argument(self, action):
         if action.help is SUPPRESS:
             return
@@ -528,9 +530,13 @@ class HelpFormatter(object):
             parts.append('\n')
 
         # if there are any sub-actions, add their help as well
-        for subaction in self._iter_indented_subactions(action):
-            formatted = self._format_action(subaction)
-            parts.append(formatted)
+        subactions = self._get_subactions(action)
+        if subactions:
+            self._indent()
+            for subaction in subactions:
+                formatted = self._format_action(subaction)
+                parts.append(formatted)
+            self._dedent()
 
         # return a single string
         return self._join_parts(parts)
@@ -604,15 +610,13 @@ class HelpFormatter(object):
             params['choices'] = choices_str
         return self._get_help_string(action) % params
 
-    def _iter_indented_subactions(self, action):
+    def _get_subactions(self, action):
         try:
             get_subactions = action._get_subactions
         except AttributeError:
-            pass
+            return ()
         else:
-            self._indent()
-            yield from get_subactions()
-            self._dedent()
+            return get_subactions()
 
     def _split_lines(self, text, width):
         text = self._whitespace_matcher.sub(' ', text).strip()
