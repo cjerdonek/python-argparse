@@ -224,8 +224,8 @@ class HelpFormatter(object):
             # join the section-initial newline, the heading and the help
             return join(['\n', heading, item_help, '\n'])
 
-    def _add_item(self, func, args):
-        self._current_section.items.append((func, args))
+    def _add_item(self, format_item, items):
+        self._current_section.items.append((format_item, items))
 
     # ========================
     # Message building methods
