@@ -569,33 +569,29 @@ class HelpFormatter(object):
             metavar = default_metavar
         return metavar
 
-    def _metavar_formatter(self, action, default_metavar):
-        result = self._format_metavar(action, default_metavar)
-
-        def format(tuple_size):
-            if isinstance(result, tuple):
-                return result
-            else:
-                return (result, ) * tuple_size
-        return format
+    def _to_tuple(self, obj, tuple_size):
+        """Convert the given object to a tuple if not already."""
+        if isinstance(obj, tuple):
+            return obj
+        return (obj, ) * tuple_size
 
     def _format_args(self, action, default_metavar):
-        get_metavar = self._metavar_formatter(action, default_metavar)
+        metavar = self._format_metavar(action, default_metavar)
         if action.nargs is None:
-            result = '%s' % get_metavar(1)
+            result = '%s' % self._to_tuple(metavar, 1)
         elif action.nargs == OPTIONAL:
-            result = '[%s]' % get_metavar(1)
+            result = '[%s]' % self._to_tuple(metavar, 1)
         elif action.nargs == ZERO_OR_MORE:
-            result = '[%s [%s ...]]' % get_metavar(2)
+            result = '[%s [%s ...]]' % self._to_tuple(metavar, 2)
         elif action.nargs == ONE_OR_MORE:
-            result = '%s [%s ...]' % get_metavar(2)
+            result = '%s [%s ...]' % self._to_tuple(metavar, 2)
         elif action.nargs == REMAINDER:
             result = '...'
         elif action.nargs == PARSER:
-            result = '%s ...' % get_metavar(1)
+            result = '%s ...' % self._to_tuple(metavar, 1)
         else:
             formats = ['%s' for _ in range(action.nargs)]
-            result = ' '.join(formats) % get_metavar(action.nargs)
+            result = ' '.join(formats) % self._to_tuple(metavar, action.nargs)
         return result
 
     def _expand_help(self, action):
