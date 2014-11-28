@@ -181,7 +181,7 @@ class _FormatterTraverser(_TraverserBase):
 
         heading = group.title
         formatter._indent()
-        section = HelpFormatter._Section(formatter, formatter._current_section, heading)
+        section = _Section(formatter, formatter._current_section, heading)
         parts.append(section.format_help())
 
 
@@ -197,6 +197,43 @@ class _FormatterTraverser(_TraverserBase):
 
 def _add_item(section, format, args):
     section.items.append((format, args))
+
+
+class _Section(object):
+
+    def __init__(self, formatter, parent, heading=None):
+        """
+        Arguments:
+          parent: the parent _Section object.
+        """
+        self.formatter = formatter
+        self.parent = parent
+        self.heading = heading
+        self.items = []
+
+    def format_help(self):
+        """Return a string."""
+        # format the indented section
+        if self.parent is not None:
+            self.formatter._indent()
+        join = self.formatter._join_parts
+        item_help = join([format(*args) for format, args in self.items])
+        if self.parent is not None:
+            self.formatter._dedent()
+
+        # return nothing if the section was empty
+        if not item_help:
+            return ''
+
+        # add the heading if the section was non-empty
+        if self.heading is not SUPPRESS and self.heading is not None:
+            current_indent = self.formatter._current_indent
+            heading = '%*s%s:\n' % (current_indent, '', self.heading)
+        else:
+            heading = ''
+
+        # join the section-initial newline, the heading and the help
+        return join(['\n', heading, item_help, '\n'])
 
 
 class HelpFormatter(object):
@@ -231,7 +268,7 @@ class HelpFormatter(object):
         self._level = 0
         self._action_max_length = 0
 
-        self._root_section = self._Section(self, None)
+        self._root_section = _Section(self, None)
         self._current_section = self._root_section
 
         self._whitespace_matcher = _re.compile(r'\s+')
@@ -249,48 +286,12 @@ class HelpFormatter(object):
         assert self._current_indent >= 0, 'Indent decreased below 0.'
         self._level -= 1
 
-    class _Section(object):
-
-        def __init__(self, formatter, parent, heading=None):
-            """
-            Arguments:
-              parent: the parent _Section object.
-            """
-            self.formatter = formatter
-            self.parent = parent
-            self.heading = heading
-            self.items = []
-
-        def format_help(self):
-            """Return a string."""
-            # format the indented section
-            if self.parent is not None:
-                self.formatter._indent()
-            join = self.formatter._join_parts
-            item_help = join([format(*args) for format, args in self.items])
-            if self.parent is not None:
-                self.formatter._dedent()
-
-            # return nothing if the section was empty
-            if not item_help:
-                return ''
-
-            # add the heading if the section was non-empty
-            if self.heading is not SUPPRESS and self.heading is not None:
-                current_indent = self.formatter._current_indent
-                heading = '%*s%s:\n' % (current_indent, '', self.heading)
-            else:
-                heading = ''
-
-            # join the section-initial newline, the heading and the help
-            return join(['\n', heading, item_help, '\n'])
-
     # ========================
     # Message building methods
     # ========================
     def start_section(self, heading):
         self._indent()
-        section = self._Section(self, self._current_section, heading)
+        section = _Section(self, self._current_section, heading)
         _add_item(self._current_section, section.format_help, [])
         self._current_section = section
 
