@@ -251,15 +251,6 @@ class HelpFormatter(object):
     # ========================
     # Message building methods
     # ========================
-    def start_section(self, current_section, heading):
-        self._indent()
-        new_section = _SectionNode(heading)
-        _add_item(current_section, self.format_section, (new_section, True))
-        return new_section
-
-    def end_section(self):
-        self._dedent()
-
     def add_text(self, section, text):
         if text is not SUPPRESS and text is not None:
             _add_item(section, self._format_text, [text])
@@ -280,22 +271,24 @@ class HelpFormatter(object):
         return max([len(s) for s in invocations])
 
     def add_argument(self, section, action):
-        if action.help is SUPPRESS:
-            return
         action_length = self._get_action_length(action)
         self._action_max_length = max(self._action_max_length,
                                       action_length + self._current_indent)
         _add_item(section, self._format_action, [action])
 
-    def add_arguments(self, section, actions):
-        for action in actions:
+    def add_action_group(self, root_section, group):
+        self._indent()
+
+        section = _SectionNode(group.title)
+        _add_item(root_section, self.format_section, (section, True))
+
+        self.add_text(section, group.description)
+        for action in group._group_actions:
+            if action.help is SUPPRESS:
+                continue
             self.add_argument(section, action)
 
-    def add_action_group(self, current_section, group):
-        section = self.start_section(current_section, group.title)
-        self.add_text(section, group.description)
-        self.add_arguments(section, group._group_actions)
-        self.end_section()
+        self._dedent()
 
     # =======================
     # Help-formatting methods
