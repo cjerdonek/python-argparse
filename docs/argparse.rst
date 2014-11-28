@@ -1489,7 +1489,7 @@ Sub-commands
 ^^^^^^^^^^^^
 
 .. method:: ArgumentParser.add_subparsers([title], [description], [prog], \
-                                          [parser_class], [action], \
+                                          [parser_class], \
                                           [option_string], [dest], [help], \
                                           [metavar])
 
