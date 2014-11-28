@@ -194,11 +194,12 @@ def _add_item(section, format, args):
 
 class _SectionNode(object):
 
-    # TODO: add description?
-    def __init__(self, heading=None):
-        self.heading = heading
+    def __init__(self, heading=None, description=None):
         # TODO: rename items to children.
         self.items = []
+
+        self.heading = heading
+        self.description = description
 
 
 class HelpFormatter(object):
@@ -279,10 +280,9 @@ class HelpFormatter(object):
     def add_action_group(self, root_section, group):
         self._indent()
 
-        section = _SectionNode(group.title)
+        section = _SectionNode(group.title, description=group.description)
         _add_item(root_section, self.format_section, (section, True))
 
-        self.add_text(section, group.description)
         for action in group._group_actions:
             if action.help is SUPPRESS:
                 continue
@@ -301,10 +301,17 @@ class HelpFormatter(object):
 
     def format_section(self, section, parent=False):
         """Return a string."""
+        heading = self.format_section_heading(section)
+        parts = ['\n', heading]
+
         if parent:
             self._indent()
+
+        if section.description is not None:
+            parts.append(self._format_text(section.description))
         join = self._join_parts
         item_help = join([format(*args) for format, args in section.items])
+
         if parent:
             self._dedent()
 
@@ -312,9 +319,8 @@ class HelpFormatter(object):
         if not item_help:
             return ''
 
-        heading = self.format_section_heading(section)
-
-        return join(['\n', heading, item_help, '\n'])
+        parts.extend([item_help, '\n'])
+        return join(parts)
 
     def format_help2(self, parser):
         traverser = _FormatterTraverser(self)
