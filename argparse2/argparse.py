@@ -293,7 +293,6 @@ class HelpFormatter(object):
     # =======================
     # Help-formatting methods
     # =======================
-
     def format_section_heading(self, section):
         if section.heading is SUPPRESS or section.heading is None:
             return ''
@@ -353,9 +352,14 @@ class HelpFormatter(object):
             help = help.strip('\n') + '\n'
         return help
 
+    def format_usage(self, root_section, parser):
+        self.add_usage(root_section, parser.usage, parser._actions,
+                       parser._mutually_exclusive_groups)
+        return self.format_root_section(root_section)
+
     def format_help(self, root_section, parser):
         self.add_usage(root_section, parser.usage, parser._actions,
-                            parser._mutually_exclusive_groups)
+                       parser._mutually_exclusive_groups)
         self.add_text(root_section, parser.description)
         # positionals, optionals and user-defined groups
         for action_group in parser._action_groups:
@@ -2433,20 +2437,18 @@ class ArgumentParser(_AttributeHolder, _ActionsContainer):
     # =======================
     # Help-formatting methods
     # =======================
-    def format_usage(self):
-        formatter, root_section = self._get_formatter()
-        formatter.add_usage(root_section, self.usage, self._actions,
-                            self._mutually_exclusive_groups)
-        return formatter.format_root_section(root_section)
-
-    def format_help(self):
-        formatter, root_section = self._get_formatter()
-        return formatter.format_help(root_section, self)
-
     def _get_formatter(self):
         """Return the formatter object and a root section to start with."""
         formatter = self.formatter_class(prog=self.prog)
         return formatter, _SectionNode()
+
+    def format_usage(self):
+        formatter, root_section = self._get_formatter()
+        return formatter.format_usage(root_section, self)
+
+    def format_help(self):
+        formatter, root_section = self._get_formatter()
+        return formatter.format_help(root_section, self)
 
     # =====================
     # Help-printing methods
