@@ -195,6 +195,9 @@ class _FormatterTraverser(_TraverserBase):
         self.formatter = formatter
 
 
+def _add_item(section, format, args):
+    section.items.append((format, args))
+
 
 class HelpFormatter(object):
     """Formatter for generating usage messages and argument help strings.
@@ -282,16 +285,13 @@ class HelpFormatter(object):
             # join the section-initial newline, the heading and the help
             return join(['\n', heading, item_help, '\n'])
 
-    def _add_item(self, format, args):
-        self._current_section.items.append((format, args))
-
     # ========================
     # Message building methods
     # ========================
     def start_section(self, heading):
         self._indent()
         section = self._Section(self, self._current_section, heading)
-        self._add_item(section.format_help, [])
+        _add_item(self._current_section, section.format_help, [])
         self._current_section = section
 
     def end_section(self):
@@ -300,12 +300,12 @@ class HelpFormatter(object):
 
     def add_text(self, text):
         if text is not SUPPRESS and text is not None:
-            self._add_item(self._format_text, [text])
+            _add_item(self._current_section, self._format_text, [text])
 
     def add_usage(self, usage, actions, groups, prefix=None):
         if usage is not SUPPRESS:
             args = usage, actions, groups, prefix
-            self._add_item(self._format_usage, args)
+            _add_item(self._current_section, self._format_usage, args)
 
     def _get_action_length(self, action):
         """Return the max "invocation" length for an action."""
@@ -323,7 +323,7 @@ class HelpFormatter(object):
         action_length = self._get_action_length(action)
         self._action_max_length = max(self._action_max_length,
                                       action_length + self._current_indent)
-        self._add_item(self._format_action, [action])
+        _add_item(self._current_section, self._format_action, [action])
 
     def add_arguments(self, actions):
         for action in actions:
