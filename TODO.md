@@ -1,8 +1,8 @@
 TODO
 ====
 
-* The Formatter should not have the section as an attribute.
-  The "root section" should be passed in to format().
+* The Formatter should not have `_current_indent` as an attribute (to
+  remove state).
 * Get rid of `Formatter.add_item()`.
 * Think about a process where I can generically iterate through the tree.
   In the first pass I may calculate the max length.  In the second

@@ -141,14 +141,6 @@ def _ensure_value(namespace, name, value):
 # Formatting Help
 # ===============
 
-class _SectionNode(object):
-
-    def __init__(self, heading, description):
-        self.heading = heading
-        self.description = description
-        self.children = []
-
-
 class _TraverserBase(object):
 
     def on_root(self, parser):
@@ -181,7 +173,7 @@ class _FormatterTraverser(_TraverserBase):
 
         heading = group.title
         formatter._indent()
-        section = _Section(formatter._current_section, heading)
+        section = _SectionNode(formatter._current_section, heading)
         parts.append(section.format_help(formatter))
 
 
@@ -199,34 +191,14 @@ def _add_item(section, format, args):
     section.items.append((format, args))
 
 
-class _Section(object):
 
+class _SectionNode(object):
+
+    # TODO: add description?
     def __init__(self, heading=None):
-        """
-        Arguments:
-          parent: the parent _Section object.
-        """
         self.heading = heading
+        # TODO: rename items to children.
         self.items = []
-
-    def format_help(self, formatter, parent=None):
-        """Return a string."""
-        # format the indented section
-        if parent is not None:
-            formatter._indent()
-        join = formatter._join_parts
-        item_help = join([format(*args) for format, args in self.items])
-        if parent is not None:
-            formatter._dedent()
-
-        # return nothing if the section was empty
-        if not item_help:
-            return ''
-
-        heading = formatter.format_section_heading(self)
-
-        # join the section-initial newline, the heading and the help
-        return join(['\n', heading, item_help, '\n'])
 
 
 class HelpFormatter(object):
@@ -281,8 +253,8 @@ class HelpFormatter(object):
     # ========================
     def start_section(self, current_section, heading):
         self._indent()
-        new_section = _Section(heading)
-        _add_item(current_section, new_section.format_help, (self, True))
+        new_section = _SectionNode(heading)
+        _add_item(current_section, self.format_section, (new_section, True))
         return new_section
 
     def end_section(self):
@@ -334,8 +306,22 @@ class HelpFormatter(object):
             return ''
         return '%*s%s:\n' % (self._current_indent, '', section.heading)
 
-    def format_section(self, section, parts):
-        parts.append(section.title)
+    def format_section(self, section, parent=False):
+        """Return a string."""
+        if parent:
+            self._indent()
+        join = self._join_parts
+        item_help = join([format(*args) for format, args in section.items])
+        if parent:
+            self._dedent()
+
+        # return nothing if the section was empty
+        if not item_help:
+            return ''
+
+        heading = self.format_section_heading(section)
+
+        return join(['\n', heading, item_help, '\n'])
 
     def format_help2(self, parser):
         traverser = _FormatterTraverser(self)
@@ -360,9 +346,9 @@ class HelpFormatter(object):
     def format_help(self, root_section):
         """
         Arguments:
-          root_section: a _Section object.
+          root_section: a _SectionNode object.
         """
-        help = root_section.format_help(self)
+        help = self.format_section(root_section)
         if help:
             help = self._long_break_matcher.sub('\n\n', help)
             help = help.strip('\n') + '\n'
@@ -2471,7 +2457,7 @@ class ArgumentParser(_AttributeHolder, _ActionsContainer):
     def _get_formatter(self):
         """Return the formatter object and a root section to start with."""
         formatter = self.formatter_class(prog=self.prog)
-        return formatter, _Section()
+        return formatter, _SectionNode()
 
     # =====================
     # Help-printing methods
