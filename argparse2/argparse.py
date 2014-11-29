@@ -143,21 +143,77 @@ def _ensure_value(namespace, name, value):
 
 class _TraverserBase(object):
 
+    def __init__(self, parser):
+        formatter = parser._get_formatter()
+
+        self.current_indent = 0
+        self.formatter = formatter
+        self.indent_increment = formatter._indent_increment
+
+    def indent(self):
+        self.current_indent += self.indent_increment
+
+    def dedent(self):
+        self.current_indent -= self.indent_increment
+
     def on_root(self, parser):
         raise NotImplementedError()
 
     def on_action_group(self, group):
         raise NotImplementedError()
 
+    def on_action(self, action):
+        raise NotImplementedError()
+
     def traverse(self, parser):
-        self.on_root(parser)
+        # TODO: do I need to indent for subactions?
         for action_group in parser._action_groups:
+            self.indent()
             self.on_action_group(action_group)
-        #     formatter.add_action_group(action_group)
-        # formatter.add_text(self.epilog)
+            for action in action_group._group_actions:
+                self.on_action(action)
+            self.dedent()
+        assert self.current_indent == 0
 
 
-class _FormatterTraverser(_TraverserBase):
+class _MaxActionTraverser(_TraverserBase):
+
+    """A traverser to determine the "max action invocation length"."""
+
+    def __init__(self, parser):
+        super().__init__(parser)
+        self.max_length = 0
+
+    def on_action_group(self, group):
+        # print("group: title=%r" % group.title)
+        pass
+
+    def on_action(self, action):
+        # print("action: %r" % action)
+        if action.help is SUPPRESS:
+            return
+        formatter = self.formatter
+        get_invocation = formatter._format_action_invocation
+        invocations = [get_invocation(action)]
+        for subaction in formatter._get_subactions(action):
+            invocations.append(get_invocation(subaction))
+
+        sub_max = max([len(s) for s in invocations])
+        # Update the max.
+        self.max_length = max(self.max_length, sub_max + self.current_indent)
+
+
+def _compute_max_action_length(parser):
+    traverser = _MaxActionTraverser(parser)
+    traverser.traverse(parser)
+    return traverser.max_length
+
+
+class _FormattingTraverser(_TraverserBase):
+
+    def __init__(self, formatter):
+        self.parts = []
+        self.formatter = formatter
 
     def on_root(self, parser):
         formatter = self.formatter
@@ -181,10 +237,6 @@ class _FormatterTraverser(_TraverserBase):
         # self.add_text(group.description)
         # self.add_arguments(group._group_actions)
         # self.end_section()
-
-    def __init__(self, formatter):
-        self.parts = []
-        self.formatter = formatter
 
 
 def _add_item(section, format, args):
@@ -338,11 +390,14 @@ class HelpFormatter(object):
 
         return "".join(parts)
 
-    def format_root_section(self, root_section):
+    def format_root_section(self, root_section, parser):
         """
         Arguments:
           root_section: a _SectionNode object.
         """
+#        max_action_length = _compute_max_action_length()
+#        assert max_action_length == self._action_max_length
+
         help = self.format_section(root_section, indent_size=0)
         if help:
             help = self._long_break_matcher.sub('\n\n', help)
@@ -353,7 +408,7 @@ class HelpFormatter(object):
         root_section = _make_root_section()
         self.add_usage(root_section, parser.usage, parser._actions,
                        parser._mutually_exclusive_groups, indent_size=0)
-        return self.format_root_section(root_section)
+        return self.format_root_section(root_section, parser)
 
     def format_help(self, parser):
         indent_size = 0
@@ -367,7 +422,7 @@ class HelpFormatter(object):
             self.add_action_group(root_section, action_group, indent_size=indent_size)
         self.add_text(root_section, parser.epilog, indent_size=indent_size)
 
-        return self.format_root_section(root_section)
+        return self.format_root_section(root_section, parser)
 
     def _join_parts(self, part_strings):
         return ''.join([part
@@ -1130,7 +1185,7 @@ class _VersionAction(Action):
             version = parser.version
         formatter, root_section = parser._get_formatter_root()
         formatter.add_text(root_section, version, indent_size=0)
-        parser._print_message(formatter.format_root_section(root_section), _sys.stdout)
+        parser._print_message(formatter.format_root_section(root_section, parser), _sys.stdout)
         parser.exit()
 
 
@@ -1823,7 +1878,7 @@ class ArgumentParser(_AttributeHolder, _ActionsContainer):
             groups = self._mutually_exclusive_groups
             formatter.add_usage(root_section, self.usage, positionals, groups,
                                 indent_size=0, prefix='')
-            kwargs['prog'] = formatter.format_root_section(root_section).strip()
+            kwargs['prog'] = formatter.format_root_section(root_section, self).strip()
 
         action = _SubParsersAction(option_strings=[], **kwargs)
         self._subparsers._add_action(action)
