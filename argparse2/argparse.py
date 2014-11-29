@@ -264,14 +264,13 @@ class HelpFormatter(object):
     # =======================
     # Help-formatting methods
     # =======================
-    def _format_text_checked(self, text):
-        if text is not SUPPRESS and text is not None:
-            return self._format_text(text, indent_size=0)
+    def format_argument_group(self, group):
+        """Format an argument group like "positionals" or "optionals".
 
-    def format_action_group(self, group, indent_size):
-        section = _SectionNode(group.title, description=group.description)
-
-        current_indent = self._indent(indent_size)
+        Argument groups are created using ArgumentParser.add_argument_group().
+        """
+        # We start with no indent.
+        current_indent = self._indent(0)
 
         contents = []
         for action in group._group_actions:
@@ -279,37 +278,37 @@ class HelpFormatter(object):
                 continue
             contents.append(self._format_action(action, current_indent))
 
-        formatted = self._format_section(section, contents, indent_size, parent=True)
+        formatted = self._format_section(contents, indent_size=0, parent=True,
+                                         heading=group.title,
+                                         description=group.description)
         return formatted
 
-    def format_section_heading(self, section, indent_size):
-        if section.heading is SUPPRESS or section.heading is None:
+    def format_section_heading(self, heading, indent_size):
+        if heading is SUPPRESS or heading is None:
             return ''
-        return '%*s%s:\n' % (indent_size, '', section.heading)
+        return '%*s%s:\n' % (indent_size, '', heading)
 
-    def _format_section(self, section, contents, indent_size, parent=False):
+    def _format_section(self, contents, indent_size, parent=False,
+                        heading=None, description=None):
         """Return a string.
 
         Arguments:
           section: a _SectionNode object.
           contents: a list of strings making up the "inside".
         """
-        join = self._join_parts
-        item_help = join(contents)
+        item_help = self._join_parts(contents)
         # return nothing if the section was empty
         if not item_help:
             return ''
 
-        heading = self.format_section_heading(section, indent_size=indent_size)
-        parts = ['\n', heading]
+        heading = self.format_section_heading(heading, indent_size=indent_size)
 
         if parent:
             indent_size = self._indent(indent_size)
-        if section.description is not None:
-            parts.append(self._format_text(section.description, indent_size))
+        description = self._format_text_checked(description, indent_size)
 
-        parts.extend([item_help, '\n'])
-        return join(parts)
+        parts = ['\n', heading, description, item_help, '\n']
+        return self._join_parts(parts)
 
     def normalize_help(self, help):
         if help:
@@ -330,8 +329,7 @@ class HelpFormatter(object):
         Arguments:
           contents: an iterable of strings.
         """
-        root_section = _SectionNode()
-        help = self._format_section(root_section, contents, indent_size=0, parent=False)
+        help = self._format_section(contents, indent_size=0, parent=False)
         return self.normalize_help(help)
 
     def format_usage(self, parser):
@@ -339,7 +337,6 @@ class HelpFormatter(object):
         return self._finalize_help([usage])
 
     def format_help(self, parser):
-        indent_size = 0
         self._action_max_length = _compute_max_action_length(parser)
 
         usage = self._format_parser_usage(parser)
@@ -348,7 +345,7 @@ class HelpFormatter(object):
 
         # positionals, optionals and user-defined groups
         for action_group in parser._action_groups:
-            group_text = self.format_action_group(action_group, indent_size)
+            group_text = self.format_argument_group(action_group)
             contents.append(group_text)
         contents.append(parser.epilog)
 
@@ -547,6 +544,10 @@ class HelpFormatter(object):
 
         # return the text
         return text
+
+    def _format_text_checked(self, text, indent_size=0):
+        if text is not SUPPRESS and text is not None:
+            return self._format_text(text, indent_size)
 
     def _format_text(self, text, indent_size):
         if '%(prog)' in text:
