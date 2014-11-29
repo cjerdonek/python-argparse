@@ -14,6 +14,5 @@
 
 include .travis.yml
 include LICENSE
-include README.md
-include CHANGELOG.md
+include *.md
 recursive-include docs *.rst
