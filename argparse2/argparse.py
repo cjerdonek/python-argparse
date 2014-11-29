@@ -252,9 +252,9 @@ class HelpFormatter(object):
     # ========================
     # Message building methods
     # ========================
-    def add_text(self, section, text):
+    def add_text(self, section, text, indent_size):
         if text is not SUPPRESS and text is not None:
-            _add_item(section, self._format_text, [text])
+            _add_item(section, self._format_text, (text, indent_size))
 
     def add_usage(self, section, usage, actions, groups, prefix=None):
         if usage is not SUPPRESS:
@@ -293,21 +293,21 @@ class HelpFormatter(object):
     # =======================
     # Help-formatting methods
     # =======================
-    def format_section_heading(self, section):
+    def format_section_heading(self, section, indent_size):
         if section.heading is SUPPRESS or section.heading is None:
             return ''
-        return '%*s%s:\n' % (self._current_indent, '', section.heading)
+        return '%*s%s:\n' % (indent_size, '', section.heading)
 
     def format_section(self, section, parent=False):
         """Return a string."""
-        heading = self.format_section_heading(section)
+        heading = self.format_section_heading(section, indent_size=self._current_indent)
         parts = ['\n', heading]
 
         if parent:
             self._indent()
 
         if section.description is not None:
-            parts.append(self._format_text(section.description))
+            parts.append(self._format_text(section.description, self._current_indent))
         join = self._join_parts
         item_help = join([format(*args) for format, args in section.items])
 
@@ -360,11 +360,11 @@ class HelpFormatter(object):
     def format_help(self, root_section, parser):
         self.add_usage(root_section, parser.usage, parser._actions,
                        parser._mutually_exclusive_groups)
-        self.add_text(root_section, parser.description)
+        self.add_text(root_section, parser.description, self._current_indent)
         # positionals, optionals and user-defined groups
         for action_group in parser._action_groups:
             self.add_action_group(root_section, action_group)
-        self.add_text(root_section, parser.epilog)
+        self.add_text(root_section, parser.epilog, self._current_indent)
         return self.format_root_section(root_section)
 
     def _join_parts(self, part_strings):
@@ -561,11 +561,11 @@ class HelpFormatter(object):
         # return the text
         return text
 
-    def _format_text(self, text):
+    def _format_text(self, text, indent_size):
         if '%(prog)' in text:
             text = text % dict(prog=self._prog)
-        text_width = max(self._width - self._current_indent, 11)
-        indent = ' ' * self._current_indent
+        text_width = max(self._width - indent_size, 11)
+        indent = indent_size * ' '
         return self._fill_text(text, text_width, indent) + '\n\n'
 
     def _format_subactions(self, action, parts):
@@ -1128,7 +1128,7 @@ class _VersionAction(Action):
         if version is None:
             version = parser.version
         formatter, root_section = parser._get_formatter()
-        formatter.add_text(root_section, version)
+        formatter.add_text(root_section, version, indent_size=0)
         parser._print_message(formatter.format_root_section(root_section), _sys.stdout)
         parser.exit()
 
