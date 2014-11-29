@@ -1,10 +1,9 @@
 TODO
 ====
 
-* Make a function to calculate the max action length in a first pass.
-* The Formatter should not have `_current_indent` as an attribute (to
-  remove state).
 * Get rid of `Formatter.add_item()`.
+  - In particular, we should be formatting the string as we go along
+    (now that we are computing the max length in advance).
 * Think about a process where I can generically iterate through the tree.
   In the first pass I may calculate the max length.  In the second
   I may build the actual formatted string.

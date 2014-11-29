@@ -185,11 +185,9 @@ class _MaxActionTraverser(_TraverserBase):
         self.max_length = 0
 
     def on_action_group(self, group):
-        # print("group: title=%r" % group.title)
         pass
 
     def on_action(self, action):
-        # print("action: %r" % action)
         if action.help is SUPPRESS:
             return
         formatter = self.formatter
@@ -240,8 +238,13 @@ class _FormattingTraverser(_TraverserBase):
         # self.end_section()
 
 
+def _add_string(section, format, args):
+    section.items.append(format(*args))
+
 def _add_item(section, format, args):
-    section.items.append((format, args))
+    #value = (format, args)
+    value = format(*args)
+    section.items.append(value)
 
 
 def _make_root_section():
@@ -257,6 +260,8 @@ class _SectionNode(object):
         self.heading = heading
         self.description = description
 
+    def __repr__(self):
+        return "<_SectionNode [heading=%r]>" % self.heading
 
 class HelpFormatter(object):
     """Formatter for generating usage messages and argument help strings.
@@ -315,7 +320,6 @@ class HelpFormatter(object):
 
     def add_action_group(self, root_section, group, indent_size):
         section = _SectionNode(group.title, description=group.description)
-        _add_item(root_section, self.format_section, (section, indent_size, True))
 
         current_indent = self._indent(indent_size)
 
@@ -323,6 +327,8 @@ class HelpFormatter(object):
             if action.help is SUPPRESS:
                 continue
             _add_item(section, self._format_action, [action, current_indent])
+
+        _add_item(root_section, self.format_section, (section, indent_size, True))
 
     # =======================
     # Help-formatting methods
@@ -332,56 +338,56 @@ class HelpFormatter(object):
             return ''
         return '%*s%s:\n' % (indent_size, '', section.heading)
 
-    def format_section(self, section, indent_size, parent=False):
-        """Return a string."""
+    def _format_section_with_items(self, section, contents, indent_size, parent=False):
+        """Return a string.
+
+        Arguments:
+          section: a _SectionNode object.
+          contents: a list of strings making up the "inside".
+        """
+        join = self._join_parts
+        item_help = join(contents)
+        # return nothing if the section was empty
+        if not item_help:
+            return ''
+
         heading = self.format_section_heading(section, indent_size=indent_size)
         parts = ['\n', heading]
 
         if parent:
             indent_size = self._indent(indent_size)
-
         if section.description is not None:
             parts.append(self._format_text(section.description, indent_size))
-        join = self._join_parts
-        item_help = join([format(*args) for format, args in section.items])
-
-        if parent:
-            indent_size = self._dedent(indent_size)
-
-        # return nothing if the section was empty
-        if not item_help:
-            return ''
 
         parts.extend([item_help, '\n'])
         return join(parts)
 
-    def format_help2(self, parser):
-        traverser = _FormatterTraverser(self)
-        traverser.traverse(parser)
-        parts = traverser.parts
-        return "".join(parts)
+    def format_section(self, section, indent_size, parent=False):
+        """Return a string.
 
-        parts = []
-        parts.append(self._format_usage(parser.usage, parser._actions,
-                                        parser._mutually_exclusive_groups, prefix=None))
-        parts.append(parser.description)
-        # positionals, optionals and user-defined groups
-        for action_group in parser._action_groups:
-            self.format_section(action_group, parts)
-        # # epilog
-        # formatter.add_text(self.epilog)
-        # # determine help from format above
-        # return formatter.format_help()
+        Arguments:
+          section: a _SectionNode object.
+        """
+        contents = []
+        for item in section.items:
+            if isinstance(item, tuple):
+                format, args = item
+                item = format(*args)
+            # Otherwise, item is a string.
+            contents.append(item)
+        return self._format_section_with_items(section, contents, indent_size, parent=parent)
 
-        return "".join(parts)
+    def normalize_help(self, help):
+        if help:
+            help = self._long_break_matcher.sub('\n\n', help)
+            help = help.strip('\n') + '\n'
+        return help
 
     def format_root_section(self, root_section, parser, max_action=None):
         """
         Arguments:
           root_section: a _SectionNode object.
         """
-        if max_action is not None:
-            self._action_max_length = max_action
         help = self.format_section(root_section, indent_size=0)
         if help:
             help = self._long_break_matcher.sub('\n\n', help)
@@ -389,14 +395,20 @@ class HelpFormatter(object):
         return help
 
     def format_usage(self, parser):
+        if parser.usage is SUPPRESS:
+            return ''
         root_section = _make_root_section()
-        self.add_usage(root_section, parser.usage, parser._actions,
-                       parser._mutually_exclusive_groups, indent_size=0)
-        return self.format_root_section(root_section, parser)
+        usage = self._format_usage(parser.usage, parser._actions,
+                                   parser._mutually_exclusive_groups,
+                                   prefix=None, indent_size=0)
+        text = self._format_section_with_items(root_section, [usage], indent_size=0,
+                                               parent=False)
+        return self.normalize_help(text)
 
     def format_help(self, parser):
         indent_size = 0
         root_section = _make_root_section()
+        self._action_max_length = _compute_max_action_length(parser)
 
         self.add_usage(root_section, parser.usage, parser._actions,
                        parser._mutually_exclusive_groups, indent_size=indent_size)
@@ -406,9 +418,7 @@ class HelpFormatter(object):
             self.add_action_group(root_section, action_group, indent_size=indent_size)
         self.add_text(root_section, parser.epilog, indent_size=indent_size)
 
-        max_action_length = _compute_max_action_length(parser)
-
-        return self.format_root_section(root_section, parser, max_action=max_action_length)
+        return self.format_root_section(root_section, parser)
 
     def _join_parts(self, part_strings):
         return ''.join([part
@@ -664,7 +674,8 @@ class HelpFormatter(object):
         self._format_subactions(action, parts, indent_size=indent_size)
 
         # return a single string
-        return self._join_parts(parts)
+        formatted = self._join_parts(parts)
+        return formatted
 
     def _format_action_invocation(self, action):
         if not action.option_strings:
