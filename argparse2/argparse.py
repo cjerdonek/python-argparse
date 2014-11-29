@@ -232,21 +232,6 @@ class _FormattingTraverser(_TraverserBase):
         parts.append(section.format_help(formatter))
 
 
-        # self.start_section(group.title)
-        # self.add_text(group.description)
-        # self.add_arguments(group._group_actions)
-        # self.end_section()
-
-
-def _add_string(section, format, args):
-    section.items.append(format(*args))
-
-def _add_item(section, format, args):
-    #value = (format, args)
-    value = format(*args)
-    section.items.append(value)
-
-
 def _make_root_section():
     return _SectionNode()
 
@@ -306,33 +291,27 @@ class HelpFormatter(object):
         assert current_indent >= 0, 'Indent decreased below 0.'
         return current_indent
 
-    # ========================
-    # Message building methods
-    # ========================
-    def add_text(self, section, text, indent_size):
+    # =======================
+    # Help-formatting methods
+    # =======================
+    def _format_text_and_normalize(self, text, indent_size):
         if text is not SUPPRESS and text is not None:
-            _add_item(section, self._format_text, (text, indent_size))
+            return self._format_text(text, indent_size)
 
-    def add_usage(self, section, usage, actions, groups, indent_size, prefix=None):
-        if usage is not SUPPRESS:
-            args = usage, actions, groups, prefix, indent_size
-            _add_item(section, self._format_usage, args)
-
-    def add_action_group(self, root_section, group, indent_size):
+    def format_action_group(self, group, indent_size):
         section = _SectionNode(group.title, description=group.description)
 
         current_indent = self._indent(indent_size)
 
+        contents = []
         for action in group._group_actions:
             if action.help is SUPPRESS:
                 continue
-            _add_item(section, self._format_action, [action, current_indent])
+            contents.append(self._format_action(action, current_indent))
 
-        _add_item(root_section, self.format_section, (section, indent_size, True))
+        formatted = self._format_section_with_items(section, contents, indent_size, parent=True)
+        return formatted
 
-    # =======================
-    # Help-formatting methods
-    # =======================
     def format_section_heading(self, section, indent_size):
         if section.heading is SUPPRESS or section.heading is None:
             return ''
@@ -394,31 +373,43 @@ class HelpFormatter(object):
             help = help.strip('\n') + '\n'
         return help
 
-    def format_usage(self, parser):
+    def _format_usage_from_parser(self, parser):
         if parser.usage is SUPPRESS:
             return ''
-        root_section = _make_root_section()
         usage = self._format_usage(parser.usage, parser._actions,
                                    parser._mutually_exclusive_groups,
                                    prefix=None, indent_size=0)
-        text = self._format_section_with_items(root_section, [usage], indent_size=0,
-                                               parent=False)
+        return usage
+
+    def format_text(self, root_section, text):
+        formatted = self._format_section_with_items(root_section, [text], indent_size=0,
+                                                    parent=False)
         return self.normalize_help(text)
+
+    def format_usage(self, parser):
+        root_section = _make_root_section()
+        usage = self._format_usage_from_parser(parser)
+        return self.format_text(root_section, usage)
 
     def format_help(self, parser):
         indent_size = 0
         root_section = _make_root_section()
         self._action_max_length = _compute_max_action_length(parser)
 
-        self.add_usage(root_section, parser.usage, parser._actions,
-                       parser._mutually_exclusive_groups, indent_size=indent_size)
-        self.add_text(root_section, parser.description, indent_size=indent_size)
+        usage = self._format_usage_from_parser(parser)
+        desc = self._format_text_and_normalize(parser.description, indent_size=indent_size)
+
+        contents = [usage, desc, "\n"]
+
         # positionals, optionals and user-defined groups
         for action_group in parser._action_groups:
-            self.add_action_group(root_section, action_group, indent_size=indent_size)
-        self.add_text(root_section, parser.epilog, indent_size=indent_size)
+            group_text = self.format_action_group(action_group, indent_size)
+            contents.append(group_text)
+        contents.append(parser.epilog)
 
-        return self.format_root_section(root_section, parser)
+        text = self._format_section_with_items(root_section, contents, indent_size=0,
+                                               parent=False)
+        return self.normalize_help(text)
 
     def _join_parts(self, part_strings):
         return ''.join([part
@@ -1181,8 +1172,11 @@ class _VersionAction(Action):
         if version is None:
             version = parser.version
         formatter, root_section = parser._get_formatter_root()
-        formatter.add_text(root_section, version, indent_size=0)
-        parser._print_message(formatter.format_root_section(root_section, parser), _sys.stdout)
+        text = formatter._format_text_and_normalize(version, indent_size=0)
+        formatted = formatter._format_section_with_items(root_section, [text],
+                            indent_size=0, parent=False)
+        formatted = formatter.normalize_help(formatted)
+        parser._print_message(formatted, _sys.stdout)
         parser.exit()
 
 
@@ -1873,9 +1867,9 @@ class ArgumentParser(_AttributeHolder, _ActionsContainer):
             formatter, root_section = self._get_formatter_root()
             positionals = self._get_positional_actions()
             groups = self._mutually_exclusive_groups
-            formatter.add_usage(root_section, self.usage, positionals, groups,
-                                indent_size=0, prefix='')
-            kwargs['prog'] = formatter.format_root_section(root_section, self).strip()
+            usage = formatter._format_usage(self.usage, positionals, groups,
+                                            indent_size=0, prefix='')
+            kwargs['prog'] = usage.strip()
 
         action = _SubParsersAction(option_strings=[], **kwargs)
         self._subparsers._add_action(action)
