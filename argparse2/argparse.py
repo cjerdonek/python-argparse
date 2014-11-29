@@ -194,7 +194,7 @@ class _MaxActionTraverser(_TraverserBase):
         get_invocation = formatter._format_action_invocation
 
         invocations = [get_invocation(action)]
-        for subaction in formatter._get_subactions(action):
+        for subaction in formatter._get_subcommands(action):
             invocations.append(get_invocation(subaction))
 
         sub_max = max([len(s) for s in invocations])
@@ -556,8 +556,8 @@ class HelpFormatter(object):
         indent = indent_size * ' '
         return self._fill_text(text, text_width, indent) + '\n\n'
 
-    def _format_subactions(self, action, parts, indent_size):
-        subactions = self._get_subactions(action)
+    def _format_subcommands(self, action, parts, indent_size):
+        subactions = self._get_subcommands(action)
         if subactions:
             indent_size = self._indent(indent_size)
             for subaction in subactions:
@@ -606,7 +606,7 @@ class HelpFormatter(object):
             parts.append('\n')
 
         # if there are any sub-actions, add their help as well
-        self._format_subactions(action, parts, indent_size=indent_size)
+        self._format_subcommands(action, parts, indent_size=indent_size)
 
         # return a single string
         formatted = self._join_parts(parts)
@@ -681,13 +681,13 @@ class HelpFormatter(object):
             params['choices'] = choices_str
         return self._get_help_string(action) % params
 
-    def _get_subactions(self, action):
+    def _get_subcommands(self, action):
         try:
-            get_subactions = action._get_subactions
+            get_subcommands = action._get_subcommands
         except AttributeError:
             return ()
         else:
-            return get_subactions()
+            return get_subcommands()
 
     def _split_lines(self, text, width):
         text = self._whitespace_matcher.sub(' ', text).strip()
@@ -1124,32 +1124,46 @@ class _VersionAction(Action):
 
 class _ParserGroup(object):
 
+    """A group of sub-commands.
+
+    Attributes:
+      _subcommands: a list of _SubcommandPseudoAction objects,
+        corresponding to the sub-commands in the group.
+    """
+
     def __init__(self, parent, name):
         """
         Arguments:
           name: name of the group for display purposes only.
           parent: a _SubParsersAction object.
         """
-        self._subactions = []
+        self._subcommands = []
 
         self.name = name
         self.parent = parent
 
     def add_parser(self, name, *args, **kwargs):
-        return self.parent._add_parser(self._subactions, name, **kwargs)
+        return self.parent._add_parser(self._subcommands, name, **kwargs)
+
+
+class _SubcommandPseudoAction(Action):
+
+    def __init__(self, name, aliases, help):
+        metavar = dest = name
+        if aliases:
+            metavar += ' (%s)' % ', '.join(aliases)
+        super().__init__(option_strings=[], dest=dest, help=help, metavar=metavar)
 
 
 class _SubParsersAction(Action):
 
-    class _ChoicesPseudoAction(Action):
+    """Corresponds to the argument that accepts a sub-command.
 
-        def __init__(self, name, aliases, help):
-            metavar = dest = name
-            if aliases:
-                metavar += ' (%s)' % ', '.join(aliases)
-            sup = super(_SubParsersAction._ChoicesPseudoAction, self)
-            sup.__init__(option_strings=[], dest=dest, help=help,
-                         metavar=metavar)
+    Attributes:
+      _subcommands: a list of _SubcommandPseudoAction objects.  This list
+        does not include sub-commands in one of the subgroups.
+      _subgroups: a list of _ParserGroup objects.
+    """
 
     def __init__(self,
                  option_strings,
@@ -1162,8 +1176,8 @@ class _SubParsersAction(Action):
         self._prog_prefix = prog
         self._parser_class = parser_class
         self._name_parser_map = _collections.OrderedDict()
-        self._subactions = []
-        self._groups = []
+        self._subcommands = []
+        self._subgroups = []
 
         super(_SubParsersAction, self).__init__(
             option_strings=option_strings,
@@ -1173,7 +1187,11 @@ class _SubParsersAction(Action):
             help=help,
             metavar=metavar)
 
-    def _add_parser(self, _subactions, name, **kwargs):
+    def _add_parser(self, _subcommands, name, **kwargs):
+        """
+        Arguments:
+          _subcommands: the list o
+        """
         # set prog from the existing prefix
         if kwargs.get('prog') is None:
             kwargs['prog'] = '%s %s' % (self._prog_prefix, name)
@@ -1183,8 +1201,8 @@ class _SubParsersAction(Action):
         # create a pseudo-action to hold the choice help
         if 'help' in kwargs:
             help = kwargs.pop('help')
-            choice_action = self._ChoicesPseudoAction(name, aliases, help)
-            _subactions.append(choice_action)
+            choice_action = _SubcommandPseudoAction(name, aliases, help)
+            _subcommands.append(choice_action)
 
         # create the parser and add it to the map
         parser = self._parser_class(**kwargs)
@@ -1197,16 +1215,16 @@ class _SubParsersAction(Action):
         return parser
 
     def add_parser(self, name, **kwargs):
-        return self._add_parser(self._subactions, name, **kwargs)
+        return self._add_parser(self._subcommands, name, **kwargs)
 
     def add_parser_group(self, name):
         group = _ParserGroup(self, name)
-        self._groups.append(group)
+        self._subgroups.append(group)
         return group
 
     # This is used only for help formatting.
-    def _get_subactions(self):
-        return self._subactions
+    def _get_subcommands(self):
+        return self._subcommands
 
     def __call__(self, parser, namespace, values, option_string=None):
         parser_name = values[0]
