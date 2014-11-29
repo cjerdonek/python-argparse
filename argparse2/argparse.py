@@ -270,7 +270,7 @@ class HelpFormatter(object):
 
         return max([len(s) for s in invocations])
 
-    def add_argument(self, section, action, current_indent):
+    def add_formatted_action(self, section, action, current_indent):
         action_length = self._get_action_length(action)
         self._action_max_length = max(self._action_max_length,
                                       action_length + current_indent)
@@ -285,7 +285,7 @@ class HelpFormatter(object):
         for action in group._group_actions:
             if action.help is SUPPRESS:
                 continue
-            self.add_argument(section, action, current_indent=current_indent)
+            self.add_formatted_action(section, action, current_indent=current_indent)
 
     # =======================
     # Help-formatting methods
@@ -358,6 +358,7 @@ class HelpFormatter(object):
     def format_help(self, parser):
         indent_size = 0
         root_section = _make_root_section()
+
         self.add_usage(root_section, parser.usage, parser._actions,
                        parser._mutually_exclusive_groups, indent_size=indent_size)
         self.add_text(root_section, parser.description, indent_size=indent_size)
@@ -365,6 +366,7 @@ class HelpFormatter(object):
         for action_group in parser._action_groups:
             self.add_action_group(root_section, action_group, indent_size=indent_size)
         self.add_text(root_section, parser.epilog, indent_size=indent_size)
+
         return self.format_root_section(root_section)
 
     def _join_parts(self, part_strings):

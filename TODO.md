@@ -1,6 +1,7 @@
 TODO
 ====
 
+* Make a function to calculate the max action length in a first pass.
 * The Formatter should not have `_current_indent` as an attribute (to
   remove state).
 * Get rid of `Formatter.add_item()`.
