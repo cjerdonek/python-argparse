@@ -341,33 +341,7 @@ class HelpFormatter(object):
         parts.extend([item_help, '\n'])
         return join(parts)
 
-    def format_section(self, section, indent_size, parent=False):
-        """Return a string.
-
-        Arguments:
-          section: a _SectionNode object.
-        """
-        contents = []
-        for item in section.items:
-            if isinstance(item, tuple):
-                format, args = item
-                item = format(*args)
-            # Otherwise, item is a string.
-            contents.append(item)
-        return self._format_section_with_items(section, contents, indent_size, parent=parent)
-
     def normalize_help(self, help):
-        if help:
-            help = self._long_break_matcher.sub('\n\n', help)
-            help = help.strip('\n') + '\n'
-        return help
-
-    def format_root_section(self, root_section, parser, max_action=None):
-        """
-        Arguments:
-          root_section: a _SectionNode object.
-        """
-        help = self.format_section(root_section, indent_size=0)
         if help:
             help = self._long_break_matcher.sub('\n\n', help)
             help = help.strip('\n') + '\n'
