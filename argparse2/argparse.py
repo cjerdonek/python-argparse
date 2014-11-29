@@ -229,9 +229,6 @@ class HelpFormatter(object):
         self._max_help_position = min(max_help_position,
                                       max(width - 20, indent_increment * 2))
         self._width = width
-
-        self._current_indent = 0
-        self._level = 0
         self._action_max_length = 0
 
         self._whitespace_matcher = _re.compile(r'\s+')
@@ -240,14 +237,13 @@ class HelpFormatter(object):
     # ===============================
     # Section and indentation methods
     # ===============================
-    def _indent(self):
-        self._current_indent += self._indent_increment
-        self._level += 1
+    def _indent(self, current):
+        return current + self._indent_increment
 
-    def _dedent(self):
-        self._current_indent -= self._indent_increment
-        assert self._current_indent >= 0, 'Indent decreased below 0.'
-        self._level -= 1
+    def _dedent(self, current_indent):
+        current_indent -= self._indent_increment
+        assert current_indent >= 0, 'Indent decreased below 0.'
+        return current_indent
 
     # ========================
     # Message building methods
@@ -256,9 +252,9 @@ class HelpFormatter(object):
         if text is not SUPPRESS and text is not None:
             _add_item(section, self._format_text, (text, indent_size))
 
-    def add_usage(self, section, usage, actions, groups, prefix=None):
+    def add_usage(self, section, usage, actions, groups, indent_size, prefix=None):
         if usage is not SUPPRESS:
-            args = usage, actions, groups, prefix
+            args = usage, actions, groups, prefix, indent_size
             _add_item(section, self._format_usage, args)
 
     def _get_action_length(self, action):
@@ -271,24 +267,22 @@ class HelpFormatter(object):
 
         return max([len(s) for s in invocations])
 
-    def add_argument(self, section, action):
+    def add_argument(self, section, action, current_indent):
         action_length = self._get_action_length(action)
         self._action_max_length = max(self._action_max_length,
-                                      action_length + self._current_indent)
-        _add_item(section, self._format_action, [action])
+                                      action_length + current_indent)
+        _add_item(section, self._format_action, [action, current_indent])
 
-    def add_action_group(self, root_section, group):
-        self._indent()
-
+    def add_action_group(self, root_section, group, indent_size):
         section = _SectionNode(group.title, description=group.description)
-        _add_item(root_section, self.format_section, (section, True))
+        _add_item(root_section, self.format_section, (section, indent_size, True))
+
+        current_indent = self._indent(indent_size)
 
         for action in group._group_actions:
             if action.help is SUPPRESS:
                 continue
-            self.add_argument(section, action)
-
-        self._dedent()
+            self.add_argument(section, action, current_indent=current_indent)
 
     # =======================
     # Help-formatting methods
@@ -298,21 +292,21 @@ class HelpFormatter(object):
             return ''
         return '%*s%s:\n' % (indent_size, '', section.heading)
 
-    def format_section(self, section, parent=False):
+    def format_section(self, section, indent_size, parent=False):
         """Return a string."""
-        heading = self.format_section_heading(section, indent_size=self._current_indent)
+        heading = self.format_section_heading(section, indent_size=indent_size)
         parts = ['\n', heading]
 
         if parent:
-            self._indent()
+            indent_size = self._indent(indent_size)
 
         if section.description is not None:
-            parts.append(self._format_text(section.description, self._current_indent))
+            parts.append(self._format_text(section.description, indent_size))
         join = self._join_parts
         item_help = join([format(*args) for format, args in section.items])
 
         if parent:
-            self._dedent()
+            indent_size = self._dedent(indent_size)
 
         # return nothing if the section was empty
         if not item_help:
@@ -346,7 +340,7 @@ class HelpFormatter(object):
         Arguments:
           root_section: a _SectionNode object.
         """
-        help = self.format_section(root_section)
+        help = self.format_section(root_section, indent_size=0)
         if help:
             help = self._long_break_matcher.sub('\n\n', help)
             help = help.strip('\n') + '\n'
@@ -354,17 +348,18 @@ class HelpFormatter(object):
 
     def format_usage(self, root_section, parser):
         self.add_usage(root_section, parser.usage, parser._actions,
-                       parser._mutually_exclusive_groups)
+                       parser._mutually_exclusive_groups, indent_size=0)
         return self.format_root_section(root_section)
 
     def format_help(self, root_section, parser):
+        indent_size = 0
         self.add_usage(root_section, parser.usage, parser._actions,
-                       parser._mutually_exclusive_groups)
-        self.add_text(root_section, parser.description, self._current_indent)
+                       parser._mutually_exclusive_groups, indent_size=indent_size)
+        self.add_text(root_section, parser.description, indent_size=indent_size)
         # positionals, optionals and user-defined groups
         for action_group in parser._action_groups:
-            self.add_action_group(root_section, action_group)
-        self.add_text(root_section, parser.epilog, self._current_indent)
+            self.add_action_group(root_section, action_group, indent_size=indent_size)
+        self.add_text(root_section, parser.epilog, indent_size=indent_size)
         return self.format_root_section(root_section)
 
     def _join_parts(self, part_strings):
@@ -372,7 +367,7 @@ class HelpFormatter(object):
                         for part in part_strings
                         if part and part is not SUPPRESS])
 
-    def _format_usage(self, usage, actions, groups, prefix):
+    def _format_usage(self, usage, actions, groups, prefix, indent_size):
         if prefix is None:
             prefix = _('usage: ')
 
@@ -403,7 +398,7 @@ class HelpFormatter(object):
             usage = ' '.join([s for s in [prog, action_usage] if s])
 
             # wrap the usage parts if it's too long
-            text_width = self._width - self._current_indent
+            text_width = self._width - indent_size
             if len(prefix) + len(usage) > text_width:
 
                 # break usage into wrappable parts
@@ -568,38 +563,37 @@ class HelpFormatter(object):
         indent = indent_size * ' '
         return self._fill_text(text, text_width, indent) + '\n\n'
 
-    def _format_subactions(self, action, parts):
+    def _format_subactions(self, action, parts, indent_size):
         subactions = self._get_subactions(action)
         if subactions:
-            self._indent()
+            indent_size = self._indent(indent_size)
             for subaction in subactions:
-                formatted = self._format_action(subaction)
+                formatted = self._format_action(subaction, indent_size=indent_size)
                 parts.append(formatted)
-            self._dedent()
 
-    def _format_action(self, action):
+    def _format_action(self, action, indent_size):
         """Format an Action object for help display."""
         # determine the required width and the entry label
         help_position = min(self._action_max_length + 2,
                             self._max_help_position)
         help_width = max(self._width - help_position, 11)
-        action_width = help_position - self._current_indent - 2
+        action_width = help_position - indent_size - 2
         action_header = self._format_action_invocation(action)
 
         # no help; start on same line and add a final newline
         if not action.help:
-            tup = self._current_indent, '', action_header
+            tup = indent_size, '', action_header
             action_header = '%*s%s\n' % tup
 
         # short action name; start on the same line and pad two spaces
         elif len(action_header) <= action_width:
-            tup = self._current_indent, '', action_width, action_header
+            tup = indent_size, '', action_width, action_header
             action_header = '%*s%-*s  ' % tup
             indent_first = 0
 
         # long action name; start on the next line
         else:
-            tup = self._current_indent, '', action_header
+            tup = indent_size, '', action_header
             action_header = '%*s%s\n' % tup
             indent_first = help_position
 
@@ -619,7 +613,7 @@ class HelpFormatter(object):
             parts.append('\n')
 
         # if there are any sub-actions, add their help as well
-        self._format_subactions(action, parts)
+        self._format_subactions(action, parts, indent_size=indent_size)
 
         # return a single string
         return self._join_parts(parts)
@@ -1820,7 +1814,8 @@ class ArgumentParser(_AttributeHolder, _ActionsContainer):
             formatter, root_section = self._get_formatter()
             positionals = self._get_positional_actions()
             groups = self._mutually_exclusive_groups
-            formatter.add_usage(root_section, self.usage, positionals, groups, '')
+            formatter.add_usage(root_section, self.usage, positionals, groups,
+                                indent_size=0, prefix='')
             kwargs['prog'] = formatter.format_root_section(root_section).strip()
 
         action = _SubParsersAction(option_strings=[], **kwargs)
