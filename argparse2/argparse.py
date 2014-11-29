@@ -191,6 +191,9 @@ def _add_item(section, format, args):
     section.items.append((format, args))
 
 
+def _make_root_section():
+    return _SectionNode()
+
 
 class _SectionNode(object):
 
@@ -346,13 +349,15 @@ class HelpFormatter(object):
             help = help.strip('\n') + '\n'
         return help
 
-    def format_usage(self, root_section, parser):
+    def format_usage(self, parser):
+        root_section = _make_root_section()
         self.add_usage(root_section, parser.usage, parser._actions,
                        parser._mutually_exclusive_groups, indent_size=0)
         return self.format_root_section(root_section)
 
-    def format_help(self, root_section, parser):
+    def format_help(self, parser):
         indent_size = 0
+        root_section = _make_root_section()
         self.add_usage(root_section, parser.usage, parser._actions,
                        parser._mutually_exclusive_groups, indent_size=indent_size)
         self.add_text(root_section, parser.description, indent_size=indent_size)
@@ -1121,7 +1126,7 @@ class _VersionAction(Action):
         version = self.version
         if version is None:
             version = parser.version
-        formatter, root_section = parser._get_formatter()
+        formatter, root_section = parser._get_formatter_root()
         formatter.add_text(root_section, version, indent_size=0)
         parser._print_message(formatter.format_root_section(root_section), _sys.stdout)
         parser.exit()
@@ -1452,7 +1457,7 @@ class _ActionsContainer(object):
 
         # raise an error if the metavar does not match the type
         if hasattr(self, "_get_formatter"):
-            formatter, root_section = self._get_formatter()
+            formatter, root_section = self._get_formatter_root()
             try:
                 formatter._format_args(action, None)
             except TypeError:
@@ -1811,7 +1816,7 @@ class ArgumentParser(_AttributeHolder, _ActionsContainer):
         # prog defaults to the usage message of this parser, skipping
         # optional arguments and with no "usage:" prefix
         if kwargs.get('prog') is None:
-            formatter, root_section = self._get_formatter()
+            formatter, root_section = self._get_formatter_root()
             positionals = self._get_positional_actions()
             groups = self._mutually_exclusive_groups
             formatter.add_usage(root_section, self.usage, positionals, groups,
@@ -2434,16 +2439,21 @@ class ArgumentParser(_AttributeHolder, _ActionsContainer):
     # =======================
     def _get_formatter(self):
         """Return the formatter object and a root section to start with."""
+        return self.formatter_class(prog=self.prog)
+
+    def _get_formatter_root(self):
+        """Return the formatter object and a root section to start with."""
         formatter = self.formatter_class(prog=self.prog)
-        return formatter, _SectionNode()
+        root_section = _make_root_section()
+        return formatter, root_section
 
     def format_usage(self):
-        formatter, root_section = self._get_formatter()
-        return formatter.format_usage(root_section, self)
+        formatter = self._get_formatter()
+        return formatter.format_usage(self)
 
     def format_help(self):
-        formatter, root_section = self._get_formatter()
-        return formatter.format_help(root_section, self)
+        formatter = self._get_formatter()
+        return formatter.format_help(self)
 
     # =====================
     # Help-printing methods
