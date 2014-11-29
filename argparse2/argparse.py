@@ -208,10 +208,6 @@ def _compute_max_action_length(parser):
     return traverser.max_length
 
 
-def _make_root_section():
-    return _SectionNode()
-
-
 class _SectionNode(object):
 
     def __init__(self, heading=None, description=None):
@@ -268,9 +264,9 @@ class HelpFormatter(object):
     # =======================
     # Help-formatting methods
     # =======================
-    def _format_text_and_normalize(self, text, indent_size):
+    def _format_text_checked(self, text):
         if text is not SUPPRESS and text is not None:
-            return self._format_text(text, indent_size)
+            return self._format_text(text, indent_size=0)
 
     def format_action_group(self, group, indent_size):
         section = _SectionNode(group.title, description=group.description)
@@ -334,7 +330,7 @@ class HelpFormatter(object):
         Arguments:
           contents: an iterable of strings.
         """
-        root_section = _make_root_section()
+        root_section = _SectionNode()
         help = self._format_section(root_section, contents, indent_size=0, parent=False)
         return self.normalize_help(help)
 
@@ -347,9 +343,8 @@ class HelpFormatter(object):
         self._action_max_length = _compute_max_action_length(parser)
 
         usage = self._format_parser_usage(parser)
-        desc = self._format_text_and_normalize(parser.description, indent_size=indent_size)
-
-        contents = [usage, desc, "\n"]
+        desc = self._format_text_checked(parser.description)
+        contents = [usage, desc]
 
         # positionals, optionals and user-defined groups
         for action_group in parser._action_groups:
@@ -1120,7 +1115,7 @@ class _VersionAction(Action):
         if version is None:
             version = parser.version
         formatter = parser._get_formatter()
-        text = formatter._format_text_and_normalize(version, indent_size=0)
+        text = formatter._format_text_checked(version)
         formatted = formatter._finalize_help([text])
         parser._print_message(formatted, _sys.stdout)
         parser.exit()
