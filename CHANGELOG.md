@@ -3,6 +3,16 @@ Changelog
 
 Summary of changes.
 
+TBD
+---
+
+* Simplified and refactored some of the formatting-related code
+  (e.g. the `HelpFormatter` class).
+* [CPython [issue #14037](http://bugs.python.org/issue14037)]: Allow
+  subcommands to be organized in groups by adding an `add_parser_group()`
+  method.
+
+
 0.1.0
 -----
 

@@ -556,13 +556,21 @@ class HelpFormatter(object):
         indent = indent_size * ' '
         return self._fill_text(text, text_width, indent) + '\n\n'
 
-    def _format_subcommands(self, action, parts, indent_size):
-        subactions = self._get_subcommands(action)
-        if subactions:
+    def _add_subcommands(self, parts, action, indent_size):
+        """Format any sub-commands, and add them to the given parts."""
+        indent_size = self._indent(indent_size)
+        for subcommand in action._subcommands:
+            formatted = self._format_action(subcommand, indent_size=indent_size)
+            parts.append(formatted)
+        indent_size = self._dedent(indent_size)
+        for group in action._subgroups:
+            heading = self.format_section_heading(group.name, indent_size=indent_size)
+            parts.extend(["\n", heading])
             indent_size = self._indent(indent_size)
-            for subaction in subactions:
-                formatted = self._format_action(subaction, indent_size=indent_size)
+            for subcommand in group._subcommands:
+                formatted = self._format_action(subcommand, indent_size=indent_size)
                 parts.append(formatted)
+            indent_size = self._dedent(indent_size)
 
     def _format_action(self, action, indent_size):
         """Format an Action object for help display."""
@@ -606,7 +614,8 @@ class HelpFormatter(object):
             parts.append('\n')
 
         # if there are any sub-actions, add their help as well
-        self._format_subcommands(action, parts, indent_size=indent_size)
+        if isinstance(action, _SubParsersAction):
+            self._add_subcommands(parts, action, indent_size=indent_size)
 
         # return a single string
         formatted = self._join_parts(parts)
