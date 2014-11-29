@@ -208,30 +208,6 @@ def _compute_max_action_length(parser):
     return traverser.max_length
 
 
-class _FormattingTraverser(_TraverserBase):
-
-    def __init__(self, formatter):
-        self.parts = []
-        self.formatter = formatter
-
-    def on_root(self, parser):
-        formatter = self.formatter
-        parts = self.parts
-
-        parts.append(formatter._format_usage(parser.usage, parser._actions,
-                                             parser._mutually_exclusive_groups, prefix=None))
-        parts.append(parser.description)
-
-    def on_action_group(self, group):
-        formatter = self.formatter
-        parts = self.parts
-
-        heading = group.title
-        formatter._indent()
-        section = _SectionNode(formatter._current_section, heading)
-        parts.append(section.format_help(formatter))
-
-
 def _make_root_section():
     return _SectionNode()
 
@@ -239,14 +215,12 @@ def _make_root_section():
 class _SectionNode(object):
 
     def __init__(self, heading=None, description=None):
-        # TODO: rename items to children.
-        self.items = []
-
         self.heading = heading
         self.description = description
 
     def __repr__(self):
         return "<_SectionNode [heading=%r]>" % self.heading
+
 
 class HelpFormatter(object):
     """Formatter for generating usage messages and argument help strings.
@@ -355,19 +329,21 @@ class HelpFormatter(object):
                                        prefix=None, indent_size=0)
         return usage
 
-    def _format_finalize(self, root_section, contents):
-        formatted = self._format_section(root_section, contents, indent_size=0,
-                                         parent=False)
-        return self.normalize_help(formatted)
+    def _finalize_help(self, contents):
+        """
+        Arguments:
+          contents: an iterable of strings.
+        """
+        root_section = _make_root_section()
+        help = self._format_section(root_section, contents, indent_size=0, parent=False)
+        return self.normalize_help(help)
 
     def format_usage(self, parser):
-        root_section = _make_root_section()
         usage = self._format_parser_usage(parser)
-        return self._format_finalize(root_section, [usage])
+        return self._finalize_help([usage])
 
     def format_help(self, parser):
         indent_size = 0
-        root_section = _make_root_section()
         self._action_max_length = _compute_max_action_length(parser)
 
         usage = self._format_parser_usage(parser)
@@ -381,7 +357,7 @@ class HelpFormatter(object):
             contents.append(group_text)
         contents.append(parser.epilog)
 
-        return self._format_finalize(root_section, contents)
+        return self._finalize_help(contents)
 
     def _join_parts(self, part_strings):
         return ''.join([part
@@ -1143,10 +1119,9 @@ class _VersionAction(Action):
         version = self.version
         if version is None:
             version = parser.version
-        formatter, root_section = parser._get_formatter_root()
+        formatter = parser._get_formatter()
         text = formatter._format_text_and_normalize(version, indent_size=0)
-        formatted = formatter._format_section(root_section, [text], indent_size=0, parent=False)
-        formatted = formatter.normalize_help(formatted)
+        formatted = formatter._finalize_help([text])
         parser._print_message(formatted, _sys.stdout)
         parser.exit()
 
@@ -1476,7 +1451,7 @@ class _ActionsContainer(object):
 
         # raise an error if the metavar does not match the type
         if hasattr(self, "_get_formatter"):
-            formatter, root_section = self._get_formatter_root()
+            formatter = self._get_formatter()
             try:
                 formatter._format_args(action, None)
             except TypeError:
@@ -1835,11 +1810,11 @@ class ArgumentParser(_AttributeHolder, _ActionsContainer):
         # prog defaults to the usage message of this parser, skipping
         # optional arguments and with no "usage:" prefix
         if kwargs.get('prog') is None:
-            formatter, root_section = self._get_formatter_root()
+            formatter = self._get_formatter()
             positionals = self._get_positional_actions()
             groups = self._mutually_exclusive_groups
             usage = formatter._format_raw_usage(self.usage, positionals, groups,
-                                            indent_size=0, prefix='')
+                                                indent_size=0, prefix='')
             kwargs['prog'] = usage.strip()
 
         action = _SubParsersAction(option_strings=[], **kwargs)
@@ -2459,12 +2434,6 @@ class ArgumentParser(_AttributeHolder, _ActionsContainer):
     def _get_formatter(self):
         """Return the formatter object and a root section to start with."""
         return self.formatter_class(prog=self.prog)
-
-    def _get_formatter_root(self):
-        """Return the formatter object and a root section to start with."""
-        formatter = self.formatter_class(prog=self.prog)
-        root_section = _make_root_section()
-        return formatter, root_section
 
     def format_usage(self):
         formatter = self._get_formatter()
