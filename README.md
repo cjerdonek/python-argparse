@@ -13,6 +13,12 @@ Requirements
 * Python 3.4 or higher.
 
 
+Install
+-------
+
+    $ pip install argparse2
+
+
 Testing
 -------
 
@@ -23,3 +29,10 @@ Setup:
 From the repo root:
 
     $ python -m unittest
+
+
+License
+-------
+
+The [license](LICENSE) is inherited from CPython, so the license is
+the Python Software Foundation License (PSFL).
