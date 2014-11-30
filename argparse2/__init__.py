@@ -176,7 +176,8 @@ class _TraverserBase(object):
             if arg_group.suppress_help:
                 continue
             self.on_argument_group(arg_group)
-        assert self.current_indent == 0
+        if self.current_indent != 0:
+            raise AssertionError("current indent not zero: %d" % self.current_indent)
 
 
 class _MaxActionTraverser(_TraverserBase):
@@ -195,17 +196,19 @@ class _MaxActionTraverser(_TraverserBase):
         if action.help is SUPPRESS:
             return
         self.indent()
-        formatter = self.formatter
-        get_invocation = formatter._format_action_invocation
+        try:
+            formatter = self.formatter
+            get_invocation = formatter._format_action_invocation
 
-        invocations = [get_invocation(action)]
-        for subaction in formatter._get_subcommands(action):
-            invocations.append(get_invocation(subaction))
+            invocations = [get_invocation(action)]
+            for subaction in formatter._get_subcommands(action):
+                invocations.append(get_invocation(subaction))
 
-        sub_max = max([len(s) for s in invocations])
-        # Update the max.
-        self.max_length = max(self.max_length, sub_max + self.current_indent)
-        self.dedent()
+            sub_max = max([len(s) for s in invocations])
+            # Update the max.
+            self.max_length = max(self.max_length, sub_max + self.current_indent)
+        finally:
+            self.dedent()
 
 
 class _FormatTraverser(_TraverserBase):
@@ -218,30 +221,47 @@ class _FormatTraverser(_TraverserBase):
     def _subparsers_to_parts(self, parts, action, current_indent, traverser):
         """Format a _SubParsersAction."""
         formatter = self.formatter
+        current_indent = self.current_indent
+
         formatter._action_to_parts(parts, action, current_indent, traverser)
         # Sub-commands not in any group.
-        more_indent = formatter._indent(current_indent)
-        _children_to_parts(formatter, parts, action._subcommands, more_indent, traverser=traverser)
-        # Subparser groups (i.e. groups of sub-commands)
-        _children_to_parts(traverser, parts, action._subgroups, more_indent, traverser=traverser)
+        self.indent()
+        try:
+            more_indent = self.current_indent
+            #more_indent = formatter._indent(current_indent)
+            _children_to_parts(formatter, parts, action._subcommands, more_indent, traverser=traverser)
+            # Subparser groups (i.e. groups of sub-commands)
+            _children_to_parts(traverser, parts, action._subgroups, more_indent, traverser=traverser)
+        finally:
+            self.dedent()
 
     def _group_to_parts(self, parts, group, current_indent=None, traverser=None):
         """Format an _ArgumentGroup or _ParserGroup object."""
-        if current_indent is None:
-            current_indent = self.current_indent
+        # if current_indent is None:
+        #     current_indent = self.current_indent
         formatter = self.formatter
+        current_indent = self.current_indent
 
-        more_indent = formatter._indent(current_indent)
+        self.indent()
+        try:
+            more_indent = self.current_indent
+            #more_indent = formatter._indent(current_indent)
+            action_parts = []
+            _children_to_parts(formatter, action_parts, group._children, more_indent, traverser=self)
+            action_help = formatter._join_parts(action_parts)
+        finally:
+            self.dedent()
 
-        action_parts = []
-        _children_to_parts(formatter, action_parts, group._children, more_indent, traverser=self)
-        action_help = formatter._join_parts(action_parts)
         if not action_help:
             return
 
         title = formatter._format_section_heading(group.title, current_indent)
         parts.extend(['\n', title])
-        formatter._text_to_parts(parts, group.description, more_indent)
+        self.indent()
+        try:
+            formatter._text_to_parts(parts, group.description, more_indent)
+        finally:
+            self.dedent()
         parts.extend([action_help, '\n'])
 
     def on_argument_group(self, arg_group):
