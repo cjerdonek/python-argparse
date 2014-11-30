@@ -215,6 +215,39 @@ class HelpFormatter(object):
 
     Only the name of this class is considered a public API. All the methods
     provided by the class are considered an implementation detail.
+
+    Help-formatting diagram
+    -----------------------
+
+    The diagram below is to aid understanding the "tree" structure
+    of an ArgumentParser object and how each node in the tree
+    is formatted with respect to indentation, etc.
+       In the below, the number in brackets corresponds to the
+    "level" in the tree.  The amount of indentation matches the
+    amount the formatter indents such objects.  Observe that not all
+    children get indented.  For example, _ArgumentGroup objects are
+    not indented even though they are children of the root
+    ArgumentParser.
+       If a line is in parentheses, it signifies a transition to
+    a node in the tree that is not physically formatted.  We include
+    these in the diagram for documentation purposes so that the
+    full logical parent-child relationships are visible without gaps.
+
+      (ArgumentParser)
+      usage [1]
+      description [1]
+      (_ArgumentGroup) [1]
+      _ArgumentGroup title [2]
+        _ArgumentGroup description [2]
+        Action objects [2]
+        (_SubParsersAction object) [2]
+        _SubParsersAction metavar [3]
+          _SubcommandPseudoAction objects [3]
+          (_ParserGroup objects) [3]
+          _ParserGroup title [4]
+            _ParserGroup description [4]
+            _SubcommandPseudoAction objects [4]
+      epilog [1]
     """
 
     def __init__(self,
@@ -257,8 +290,6 @@ class HelpFormatter(object):
     # Help-formatting methods
     # =======================
     def _format_section_heading(self, heading, current_indent):
-        if heading is SUPPRESS or heading is None:
-            return ''
         return '%*s%s:\n' % (current_indent, '', heading)
 
     def _children_to_parts(self, parts, children, current_indent):
@@ -291,6 +322,16 @@ class HelpFormatter(object):
         # Subparser groups (i.e. groups of sub-commands)
         self._children_to_parts(parts, action._subgroups, more_indent)
 
+    def _help_to_parts(self, parts, parser):
+        """Format a _SubParsersAction."""
+        usage = self._format_parser_usage(parser)
+        desc = self._format_text_checked(parser.description, 0)
+        parts.extend([usage, desc])
+        # _ArgumentGroup objects, for example positionals, optionals,
+        # and user-defined groups.
+        self._children_to_parts(parts, parser._action_groups, current_indent=0)
+        parts.append(parser.epilog)
+
     def _format_parser_usage(self, parser):
         if parser.usage is SUPPRESS:
             return ''
@@ -315,51 +356,10 @@ class HelpFormatter(object):
         return self._finalize_help([usage])
 
     def format_help(self, parser):
-        """Format full help for the argument parser.
-
-        Help-formatting diagram
-        -----------------------
-
-        The diagram below is to aid understanding the "tree" structure
-        of an ArgumentParser object and how each node in the tree
-        is formatted with respect to indentation, etc.
-           In the below, the number in brackets corresponds to the
-        "level" in the tree.  The amount of indentation matches the
-        amount the formatter indents such objects.  Observe that not all
-        children get indented.  For example, _ArgumentGroup objects are
-        not indented even though they are children of the root
-        ArgumentParser.
-           If a line is in parentheses, it signifies a transition to
-        a node in the tree that is not physically formatted.  We include
-        these in the diagram for documentation purposes so that the
-        full logical parent-child relationships are visible without gaps.
-
-          (ArgumentParser)
-          usage [1]
-          description [1]
-          (_ArgumentGroup) [1]
-          _ArgumentGroup title [2]
-            _ArgumentGroup description [2]
-            Action objects [2]
-            (_SubParsersAction object) [2]
-            _SubParsersAction metavar [3]
-              _SubcommandPseudoAction objects [3]
-              (_ParserGroup objects) [3]
-              _ParserGroup title [4]
-                _ParserGroup description [4]
-                _SubcommandPseudoAction objects [4]
-          epilog [1]
-        """
+        """Format full help for the argument parser."""
         self._action_max_length = _compute_max_action_length(parser)
-
-        usage = self._format_parser_usage(parser)
-        desc = self._format_text_checked(parser.description)
-        parts = [usage, desc]
-        # _ArgumentGroup objects, for example positionals, optionals,
-        # and user-defined groups.
-        self._children_to_parts(parts, parser._action_groups, current_indent=0)
-        parts.append(parser.epilog)
-
+        parts = []
+        self._help_to_parts(parts, parser)
         return self._finalize_help(parts)
 
     def _join_parts(self, part_strings):
@@ -555,9 +555,9 @@ class HelpFormatter(object):
         # return the text
         return text
 
-    def _format_text_checked(self, text, indent_size=0):
+    def _format_text_checked(self, text, current_indent=0):
         if text is not SUPPRESS and text is not None:
-            return self._format_text(text, indent_size)
+            return self._format_text(text, current_indent)
 
     def _format_text(self, text, indent_size):
         if '%(prog)' in text:
