@@ -216,13 +216,7 @@ class _FormatTraverser(_TraverserBase):
         self.parts = parts
 
     def on_argument_group(self, arg_group):
-        # if child.suppress_help:
-        #     continue
         arg_group._to_parts(self.parts, self.formatter, self.current_indent)
-
-    def traverse(self, parser):
-        _children_to_parts(self.formatter, self.parts, parser._action_groups,
-                           current_indent=0)
 
 
 def _compute_max_action_length(parser):
