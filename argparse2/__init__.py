@@ -147,7 +147,7 @@ def _children_to_parts(formatter, parts, children, current_indent, traverser):
     for child in children:
         if child.suppress_help:
             continue
-        child._to_parts(parts, formatter, current_indent, traverser)
+        child._to_parts(parts, traverser)
 
 
 class _TraverserBase(object):
@@ -225,18 +225,18 @@ class _FormatTraverser(_TraverserBase):
         self.max_length = 0
         self.parts = parts
 
-    def _subparsers_to_parts(self, parts, action, current_indent, traverser):
+    def _subparsers_to_parts(self, parts, action):
         """Format a _SubParsersAction."""
         formatter = self.formatter
         current_indent = self.current_indent
 
-        formatter._action_to_parts(parts, action, traverser)
+        formatter._action_to_parts(parts, action, traverser=self)
         # Sub-commands not in any group.
         with self.indenting():
             more_indent = self.current_indent
-            _children_to_parts(formatter, parts, action._subcommands, more_indent, traverser=traverser)
+            _children_to_parts(formatter, parts, action._subcommands, more_indent, traverser=self)
             # Subparser groups (i.e. groups of sub-commands)
-            _children_to_parts(traverser, parts, action._subgroups, more_indent, traverser=traverser)
+            _children_to_parts(self, parts, action._subgroups, more_indent, traverser=self)
 
     def _group_to_parts(self, parts, group, current_indent=None, traverser=None):
         """Format an _ArgumentGroup or _ParserGroup object."""
@@ -261,7 +261,7 @@ class _FormatTraverser(_TraverserBase):
         parts.extend([action_help, '\n'])
 
     def on_argument_group(self, arg_group):
-        arg_group._to_parts(self.parts, traverser=self)
+        arg_group._to_parts(self.parts, self)
 
 
 def _compute_max_action_length(parser):
@@ -922,7 +922,8 @@ class Action(_AttributeHolder):
         ]
         return [(name, getattr(self, name)) for name in names]
 
-    def _to_parts(self, parts, formatter, current_indent, traverser):
+    def _to_parts(self, parts, traverser):
+        formatter = traverser.formatter
         return formatter._action_to_parts(parts, self, traverser)
 
     def __call__(self, parser, namespace, values, option_string=None):
@@ -1178,8 +1179,8 @@ class _ParserGroup(object):
     def _children(self):
         return self._subcommands
 
-    def _to_parts(self, parts, formatter, current_indent, traverser):
-        return formatter._group_to_parts(parts, self, current_indent, traverser)
+    def _to_parts(self, parts, traverser):
+        return traverser._group_to_parts(parts, self)
 
     def add_parser(self, name, *args, **kwargs):
         return self.parent._add_parser(self._subcommands, name, **kwargs)
@@ -1265,8 +1266,8 @@ class _SubParsersAction(Action):
     def _get_subcommands(self):
         return self._subcommands
 
-    def _to_parts(self, parts, formatter, current_indent, traverser):
-        return traverser._subparsers_to_parts(parts, self, current_indent, traverser)
+    def _to_parts(self, parts, traverser):
+        return traverser._subparsers_to_parts(parts, self)
 
     def __call__(self, parser, namespace, values, option_string=None):
         parser_name = values[0]
