@@ -151,12 +151,11 @@ def _children_to_parts(formatter, parts, children, current_indent):
 
 class _TraverserBase(object):
 
-    def __init__(self, parser):
-        formatter = parser._get_formatter()
-
-        self.current_indent = 0
+    def __init__(self, formatter):
         self.formatter = formatter
         self.indent_increment = formatter._indent_increment
+
+        self.current_indent = 0
 
     def indent(self):
         self.current_indent += self.indent_increment
@@ -184,8 +183,8 @@ class _MaxActionTraverser(_TraverserBase):
 
     """A traverser to determine the "max action invocation length"."""
 
-    def __init__(self, parser):
-        super().__init__(parser)
+    def __init__(self, formatter):
+        super().__init__(formatter=formatter)
         self.max_length = 0
 
     def on_argument_group(self, arg_group):
@@ -211,8 +210,8 @@ class _MaxActionTraverser(_TraverserBase):
 
 class _FormatTraverser(_TraverserBase):
 
-    def __init__(self, parser, parts):
-        super().__init__(parser)
+    def __init__(self, formatter, parts):
+        super().__init__(formatter=formatter)
         self.max_length = 0
         self.parts = parts
 
@@ -221,9 +220,14 @@ class _FormatTraverser(_TraverserBase):
         #     continue
         arg_group._to_parts(self.parts, self.formatter, self.current_indent)
 
+    def traverse(self, parser):
+        _children_to_parts(self.formatter, self.parts, parser._action_groups,
+                           current_indent=0)
+
 
 def _compute_max_action_length(parser):
-    traverser = _MaxActionTraverser(parser)
+    formatter = parser._get_formatter()
+    traverser = _MaxActionTraverser(formatter=formatter)
     traverser.traverse(parser)
     return traverser.max_length
 
@@ -349,13 +353,12 @@ class HelpFormatter(object):
 
     def _help_to_parts(self, parts, parser):
         """Format a _SubParsersAction."""
-        traverser = _FormatTraverser(parser, parts)
+        traverser = _FormatTraverser(formatter=self, parts=parts)
 
         usage = self._format_parser_usage(parser)
         parts.append(usage)
         self._text_to_parts(parts, parser.description)
-        #traverser.traverse(parser)
-        _children_to_parts(self, parts, parser._action_groups, current_indent=0)
+        traverser.traverse(parser)
         parts.append(parser.epilog)
 
     def _format_parser_usage(self, parser):
