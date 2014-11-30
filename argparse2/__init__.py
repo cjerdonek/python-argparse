@@ -215,11 +215,22 @@ class _FormatTraverser(_TraverserBase):
         self.max_length = 0
         self.parts = parts
 
+    def _subparsers_to_parts(self, parts, action, current_indent, traverser):
+        """Format a _SubParsersAction."""
+        formatter = self.formatter
+        formatter._action_to_parts(parts, action, current_indent, traverser)
+        # Sub-commands not in any group.
+        more_indent = formatter._indent(current_indent)
+        _children_to_parts(formatter, parts, action._subcommands, more_indent, traverser=traverser)
+        # Subparser groups (i.e. groups of sub-commands)
+        _children_to_parts(traverser, parts, action._subgroups, more_indent, traverser=traverser)
+
     def _group_to_parts(self, parts, group, current_indent=None, traverser=None):
         """Format an _ArgumentGroup or _ParserGroup object."""
         if current_indent is None:
             current_indent = self.current_indent
         formatter = self.formatter
+
         more_indent = formatter._indent(current_indent)
 
         action_parts = []
@@ -368,15 +379,6 @@ class HelpFormatter(object):
         if text is None:
             return
         parts.append(self._format_text(text, indent_size))
-
-    def _subparsers_to_parts(self, parts, action, current_indent, traverser):
-        """Format a _SubParsersAction."""
-        self._action_to_parts(parts, action, current_indent, traverser)
-        # Sub-commands not in any group.
-        more_indent = self._indent(current_indent)
-        _children_to_parts(self, parts, action._subcommands, more_indent, traverser=traverser)
-        # Subparser groups (i.e. groups of sub-commands)
-        _children_to_parts(traverser, parts, action._subgroups, more_indent, traverser=traverser)
 
     def _help_to_parts(self, parts, parser):
         """Format a _SubParsersAction."""
@@ -1258,7 +1260,7 @@ class _SubParsersAction(Action):
         return self._subcommands
 
     def _to_parts(self, parts, formatter, current_indent, traverser):
-        return formatter._subparsers_to_parts(parts, self, current_indent, traverser)
+        return traverser._subparsers_to_parts(parts, self, current_indent, traverser)
 
     def __call__(self, parser, namespace, values, option_string=None):
         parser_name = values[0]
