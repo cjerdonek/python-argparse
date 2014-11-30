@@ -161,20 +161,14 @@ class _TraverserBase(object):
     def on_root(self, parser):
         raise NotImplementedError()
 
-    def on_action_group(self, group):
-        raise NotImplementedError()
-
     def on_action(self, action):
         raise NotImplementedError()
 
     def traverse(self, parser):
-        # TODO: do I need to indent for subactions?
-        for action_group in parser._action_groups:
-            self.indent()
-            self.on_action_group(action_group)
-            for action in action_group._group_actions:
-                self.on_action(action)
-            self.dedent()
+        # _ArgumentGroup objects, for example positionals, optionals,
+        # and user-defined groups.
+        for arg_group in parser._action_groups:
+            self.on_argument_group(arg_group)
         assert self.current_indent == 0
 
 
@@ -186,8 +180,11 @@ class _MaxActionTraverser(_TraverserBase):
         super().__init__(parser)
         self.max_length = 0
 
-    def on_action_group(self, group):
-        pass
+    def on_argument_group(self, arg_group):
+        self.indent()
+        for action in arg_group._group_actions:
+            self.on_action(action)
+        self.dedent()
 
     def on_action(self, action):
         if action.help is SUPPRESS:
@@ -202,6 +199,19 @@ class _MaxActionTraverser(_TraverserBase):
         sub_max = max([len(s) for s in invocations])
         # Update the max.
         self.max_length = max(self.max_length, sub_max + self.current_indent)
+
+
+class _FormatTraverser(_TraverserBase):
+
+    def __init__(self, parser, parts):
+        super().__init__(parser)
+        self.max_length = 0
+        self.parts = parts
+
+    def on_argument_group(self, arg_group):
+        # if child.suppress_help:
+        #     continue
+        arg_group._to_parts(self.parts, self.formatter, self.current_indent)
 
 
 def _compute_max_action_length(parser):
@@ -236,7 +246,7 @@ class HelpFormatter(object):
       (ArgumentParser)
       usage [1]
       description [1]
-      (_ArgumentGroup) [1]
+      (_ArgumentGroup) [1] (via parser._action_groups)
       _ArgumentGroup title [2]
         _ArgumentGroup description [2]
         Action objects [2]
@@ -337,11 +347,12 @@ class HelpFormatter(object):
 
     def _help_to_parts(self, parts, parser):
         """Format a _SubParsersAction."""
+        traverser = _FormatTraverser(parser, parts)
+
         usage = self._format_parser_usage(parser)
         parts.append(usage)
         self._text_to_parts(parts, parser.description)
-        # _ArgumentGroup objects, for example positionals, optionals,
-        # and user-defined groups.
+        #traverser.traverse(parser)
         self._children_to_parts(parts, parser._action_groups, current_indent=0)
         parts.append(parser.epilog)
 
