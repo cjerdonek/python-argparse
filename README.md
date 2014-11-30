@@ -9,14 +9,14 @@ This is a fork of Python's [`argparse`][argparse] module.
 Some of the purposes of the fork are to improve the extensibility of
 the module, to simplify the code and improve its maintainability,
 and to add features, while preserving backwards compatibility for the
-most part.
+most part.  The main work being done so far is refactoring in an effort
+to simplify the code base.
 
 Up to this point, all of the test cases in the original CPython
 implementation still pass.  We anticipate breaking backwards compatibility
-only in the case of warts and documented bugs.
+only in the case of warts and "documented bugs."
 
-The main work being done so far is refactoring in an effort to simplify
-the code base.  The fork targets Python 3.4 and greater.
+The PyPI page for the project is [here][argparse2-pypi].
 
 
 Background
@@ -90,3 +90,4 @@ reserved.
 
 
 [argparse]: https://docs.python.org/3/library/argparse.html
+[argparse2-pypi]: https://pypi.python.org/pypi/argparse2
