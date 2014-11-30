@@ -192,10 +192,6 @@ class _MaxActionTraverser(_TraverserBase):
         super().__init__(formatter=formatter)
         self.max_length = 0
 
-    def on_argument_group(self, arg_group):
-        for action in arg_group._group_actions:
-            self.on_action(action)
-
     def on_action(self, action):
         if action.help is SUPPRESS:
             return
@@ -210,6 +206,10 @@ class _MaxActionTraverser(_TraverserBase):
             sub_max = max([len(s) for s in invocations])
             # Update the max.
             self.max_length = max(self.max_length, sub_max + self.current_indent)
+
+    def on_argument_group(self, arg_group):
+        for action in arg_group._group_actions:
+            self.on_action(action)
 
 
 class _FormatTraverser(_TraverserBase):
@@ -233,20 +233,15 @@ class _FormatTraverser(_TraverserBase):
         formatter._action_to_parts(parts, action, traverser=self)
         # Sub-commands not in any group.
         with self.indenting():
-            more_indent = self.current_indent
             self._children_to_parts(parts, action._subcommands)
             # Subparser groups (i.e. groups of sub-commands)
             self._children_to_parts(parts, action._subgroups)
 
-    def _group_to_parts(self, parts, group, current_indent=None, traverser=None):
+    def _group_to_parts(self, parts, group):
         """Format an _ArgumentGroup or _ParserGroup object."""
-        # if current_indent is None:
-        #     current_indent = self.current_indent
         formatter = self.formatter
-        current_indent = self.current_indent
 
         with self.indenting():
-            more_indent = self.current_indent
             action_parts = []
             self._children_to_parts(action_parts, group._children)
             action_help = formatter._join_parts(action_parts)
@@ -254,10 +249,10 @@ class _FormatTraverser(_TraverserBase):
         if not action_help:
             return
 
-        title = formatter._format_section_heading(group.title, current_indent)
+        title = formatter._format_section_heading(group.title, self.current_indent)
         parts.extend(['\n', title])
         with self.indenting():
-            formatter._text_to_parts(parts, group.description, more_indent)
+            formatter._text_to_parts(parts, group.description, self.current_indent)
         parts.extend([action_help, '\n'])
 
     def on_argument_group(self, arg_group):
