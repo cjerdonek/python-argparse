@@ -261,6 +261,12 @@ class HelpFormatter(object):
             return ''
         return '%*s%s:\n' % (current_indent, '', heading)
 
+    def _children_to_parts(self, parts, children, current_indent):
+        for child in children:
+            if child.suppress_help:
+                continue
+            child._to_parts(parts, self, current_indent)
+
     def _group_to_parts(self, parts, group, current_indent):
         """Format an argument group like "positionals" or "optionals".
 
@@ -269,11 +275,7 @@ class HelpFormatter(object):
         more_indent = self._indent(current_indent)
 
         action_parts = []
-        for action in group._group_actions:
-            if action.help is SUPPRESS:
-                continue
-            action._to_parts(action_parts, self, more_indent)
-
+        self._children_to_parts(action_parts, group._children, more_indent)
         action_help = self._join_parts(action_parts)
         if not action_help:
             return
@@ -283,24 +285,13 @@ class HelpFormatter(object):
 
         parts.extend(['\n', heading, description, action_help, '\n'])
 
-    def _add_subcommand_group(self, parts, group, current_indent):
-        """Format any sub-commands, and add them to the given parts.
-
-        Arguments:
-          group: an argument with a _subcommands attribute.
-        """
-        current_indent = self._indent(current_indent)
-        for subcommand in group._subcommands:
-            subcommand._to_parts(parts, self, current_indent)
-
     def _subparsers_to_parts(self, parts, action, current_indent):
         """Format the subparsers action."""
+        more_indent = self._indent(current_indent)
         self._action_to_parts(parts, action, current_indent)
-        self._add_subcommand_group(parts, action, current_indent)
-        for group in action._subgroups:
-            heading = self._format_section_heading(group.name, current_indent=current_indent)
-            parts.extend(["\n", heading])
-            self._add_subcommand_group(parts, group, current_indent)
+        self._children_to_parts(parts, action._subcommands, more_indent)
+        for group in action._children:
+            group._to_parts(parts, self, current_indent=current_indent)
 
     def _format_parser_usage(self, parser):
         if parser.usage is SUPPRESS:
@@ -333,8 +324,7 @@ class HelpFormatter(object):
         parts = [usage, desc]
 
         # positionals, optionals and user-defined groups
-        for group in parser._action_groups:
-            group._to_parts(parts, self, current_indent=0)
+        self._children_to_parts(parts, parser._action_groups, current_indent=0)
         parts.append(parser.epilog)
         return self._finalize_help(parts)
 
@@ -853,6 +843,10 @@ class Action(_AttributeHolder):
         self.help = help
         self.metavar = metavar
 
+    @property
+    def suppress_help(self):
+        return self.help is SUPPRESS
+
     def _get_kwargs(self):
         names = [
             'option_strings',
@@ -1105,7 +1099,7 @@ class _ParserGroup(object):
         corresponding to the sub-commands in the group.
     """
 
-    def __init__(self, parent, name):
+    def __init__(self, parent, title, description=None):
         """
         Arguments:
           name: name of the group for display purposes only.
@@ -1113,8 +1107,16 @@ class _ParserGroup(object):
         """
         self._subcommands = []
 
-        self.name = name
+        self.description = description
         self.parent = parent
+        self.title = title
+
+    @property
+    def _children(self):
+        return self._subcommands
+
+    def _to_parts(self, parts, formatter, current_indent):
+        return formatter._group_to_parts(parts, self, current_indent)
 
     def add_parser(self, name, *args, **kwargs):
         return self.parent._add_parser(self._subcommands, name, **kwargs)
@@ -1161,6 +1163,10 @@ class _SubParsersAction(Action):
             help=help,
             metavar=metavar)
 
+    @property
+    def _children(self):
+        return self._subgroups
+
     def _add_parser(self, _subcommands, name, **kwargs):
         """
         Arguments:
@@ -1191,8 +1197,8 @@ class _SubParsersAction(Action):
     def add_parser(self, name, **kwargs):
         return self._add_parser(self._subcommands, name, **kwargs)
 
-    def add_parser_group(self, name):
-        group = _ParserGroup(self, name)
+    def add_parser_group(self, title, description=None):
+        group = _ParserGroup(self, title=title, description=description)
         self._subgroups.append(group)
         return group
 
@@ -1630,6 +1636,8 @@ class _ActionsContainer(object):
 
 class _ArgumentGroup(_ActionsContainer):
 
+    suppress_help = False
+
     def __init__(self, container, title=None, description=None, **kwargs):
         # add any missing keyword arguments by checking the container
         update = kwargs.setdefault
@@ -1651,6 +1659,10 @@ class _ArgumentGroup(_ActionsContainer):
         self._has_negative_number_optionals = \
             container._has_negative_number_optionals
         self._mutually_exclusive_groups = container._mutually_exclusive_groups
+
+    @property
+    def _children(self):
+        return self._group_actions
 
     def _to_parts(self, parts, formatter, current_indent):
         return formatter._group_to_parts(parts, self, current_indent)
