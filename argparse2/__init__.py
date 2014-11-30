@@ -268,7 +268,7 @@ class HelpFormatter(object):
         for action in group._group_actions:
             if action.help is SUPPRESS:
                 continue
-            contents.append(self._format_action(action, current_indent))
+            contents.append(action._format(self, current_indent))
 
         formatted = self._format_section(contents, indent_size=0, parent=True,
                                          heading=group.title,
@@ -551,7 +551,7 @@ class HelpFormatter(object):
         """Format any sub-commands, and add them to the given parts."""
         current_indent = self._indent(current_indent)
         for subcommand in group._subcommands:
-            formatted = self._format_action(subcommand, indent_size=current_indent)
+            formatted = subcommand._format(self, current_indent)
             parts.append(formatted)
 
     def _add_subcommands(self, parts, action, current_indent):
@@ -894,6 +894,9 @@ class Action(_AttributeHolder):
             'metavar',
         ]
         return [(name, getattr(self, name)) for name in names]
+
+    def _format(self, formatter, current_indent):
+        return formatter._format_action(self, current_indent)
 
     def __call__(self, parser, namespace, values, option_string=None):
         raise NotImplementedError(_('.__call__() not defined'))
