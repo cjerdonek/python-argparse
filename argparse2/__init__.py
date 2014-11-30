@@ -289,8 +289,21 @@ class HelpFormatter(object):
     # =======================
     # Help-formatting methods
     # =======================
+    def _format_text(self, text, indent_size=0):
+        """Raises TypeError if text is None."""
+        if '%(prog)' in text:
+            text = text % dict(prog=self._prog)
+        text_width = max(self._width - indent_size, 11)
+        indent = indent_size * ' '
+        return self._fill_text(text, text_width, indent) + '\n\n'
+
     def _format_section_heading(self, heading, current_indent):
         return '%*s%s:\n' % (current_indent, '', heading)
+
+    def _text_to_parts(self, parts, text, indent_size=0):
+        if text is None:
+            return
+        parts.append(self._format_text(text, indent_size))
 
     def _children_to_parts(self, parts, children, current_indent):
         for child in children:
@@ -309,9 +322,9 @@ class HelpFormatter(object):
             return
 
         title = self._format_section_heading(group.title, current_indent)
-        description = self._format_text_checked(group.description, more_indent)
-
-        parts.extend(['\n', title, description, action_help, '\n'])
+        parts.extend(['\n', title])
+        self._text_to_parts(parts, group.description, more_indent)
+        parts.extend([action_help, '\n'])
 
     def _subparsers_to_parts(self, parts, action, current_indent):
         """Format a _SubParsersAction."""
@@ -325,8 +338,8 @@ class HelpFormatter(object):
     def _help_to_parts(self, parts, parser):
         """Format a _SubParsersAction."""
         usage = self._format_parser_usage(parser)
-        desc = self._format_text_checked(parser.description, 0)
-        parts.extend([usage, desc])
+        parts.append(usage)
+        self._text_to_parts(parts, parser.description)
         # _ArgumentGroup objects, for example positionals, optionals,
         # and user-defined groups.
         self._children_to_parts(parts, parser._action_groups, current_indent=0)
@@ -340,6 +353,11 @@ class HelpFormatter(object):
                                        prefix=None, indent_size=0)
         return usage
 
+    def _normalize_help(self, help):
+        help = self._long_break_matcher.sub('\n\n', help)
+        help = help.strip('\n') + '\n'
+        return help
+
     def _finalize_help(self, parts):
         """
         Arguments:
@@ -347,8 +365,7 @@ class HelpFormatter(object):
         """
         help = self._join_parts(parts)
         if help:
-            help = self._long_break_matcher.sub('\n\n', help)
-            help = help.strip('\n') + '\n'
+            help = self._normalize_help(help)
         return help
 
     def format_usage(self, parser):
@@ -554,17 +571,6 @@ class HelpFormatter(object):
 
         # return the text
         return text
-
-    def _format_text_checked(self, text, current_indent=0):
-        if text is not SUPPRESS and text is not None:
-            return self._format_text(text, current_indent)
-
-    def _format_text(self, text, indent_size):
-        if '%(prog)' in text:
-            text = text % dict(prog=self._prog)
-        text_width = max(self._width - indent_size, 11)
-        indent = indent_size * ' '
-        return self._fill_text(text, text_width, indent) + '\n\n'
 
     def _action_to_parts(self, parts, action, indent_size):
         """Format an Action object for help display."""
@@ -1118,9 +1124,9 @@ class _VersionAction(Action):
         if version is None:
             version = parser.version
         formatter = parser._get_formatter()
-        text = formatter._format_text_checked(version)
-        formatted = formatter._finalize_help([text])
-        parser._print_message(formatted, _sys.stdout)
+        text = formatter._format_text(version)
+        text = formatter._normalize_help(text)
+        parser._print_message(text, _sys.stdout)
         parser.exit()
 
 
@@ -1365,7 +1371,6 @@ class _ActionsContainer(object):
                  argument_default,
                  conflict_handler):
         super(_ActionsContainer, self).__init__()
-
         self.description = description
         self.argument_default = argument_default
         self.prefix_chars = prefix_chars
