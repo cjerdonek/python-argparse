@@ -219,31 +219,46 @@ class _FormatTraverser(_TraverserBase):
         self.max_length = 0
         self.parts = parts
 
-    def _children_to_parts(self, parts, children):
+    # TODO: remove the parts argument.
+    def _children_to_parts(self, children, parts=None):
         for child in children:
             if child.suppress_help:
                 continue
-            child._to_parts(parts, self)
+            try:
+                child.handle(self, parts=parts)
+            except:
+                raise Exception("child: %r" % child)
 
-    def _subparsers_to_parts(self, parts, action):
+    def handle_action(self, action, parts=None):
+        """Format a (non-subparsers) Action."""
+        if parts is None:
+            parts = self.parts
+        formatter = self.formatter
+        formatter._action_to_parts(parts, action, traverser=self)
+
+    def handle_subparsers(self, subparsers, parts=None):
         """Format a _SubParsersAction."""
+        if parts is None:
+            parts = self.parts
         formatter = self.formatter
         current_indent = self.current_indent
 
-        formatter._action_to_parts(parts, action, traverser=self)
+        formatter._action_to_parts(parts, subparsers, traverser=self)
         # Sub-commands not in any group.
         with self.indenting():
-            self._children_to_parts(parts, action._subcommands)
+            self._children_to_parts(subparsers._subcommands, parts=parts)
             # Subparser groups (i.e. groups of sub-commands)
-            self._children_to_parts(parts, action._subgroups)
+            self._children_to_parts(subparsers._subgroups, parts=parts)
 
-    def _group_to_parts(self, parts, group):
+    def handle_group(self, group, parts=None):
         """Format an _ArgumentGroup or _ParserGroup object."""
+        if parts is None:
+            parts = self.parts
         formatter = self.formatter
 
         with self.indenting():
             action_parts = []
-            self._children_to_parts(action_parts, group._children)
+            self._children_to_parts(group._children, parts=action_parts)
             action_help = formatter._join_parts(action_parts)
 
         if not action_help:
@@ -256,7 +271,7 @@ class _FormatTraverser(_TraverserBase):
         parts.extend([action_help, '\n'])
 
     def on_argument_group(self, arg_group):
-        arg_group._to_parts(self.parts, self)
+        arg_group.handle(self)
 
 
 def _compute_max_action_length(parser):
@@ -917,9 +932,8 @@ class Action(_AttributeHolder):
         ]
         return [(name, getattr(self, name)) for name in names]
 
-    def _to_parts(self, parts, traverser):
-        formatter = traverser.formatter
-        return formatter._action_to_parts(parts, self, traverser)
+    def handle(self, traverser, parts=None):
+        traverser.handle_action(self, parts=parts)
 
     def __call__(self, parser, namespace, values, option_string=None):
         raise NotImplementedError(_('.__call__() not defined'))
@@ -1174,8 +1188,8 @@ class _ParserGroup(object):
     def _children(self):
         return self._subcommands
 
-    def _to_parts(self, parts, traverser):
-        return traverser._group_to_parts(parts, self)
+    def handle(self, traverser, parts=None):
+        return traverser.handle_group(self, parts=parts)
 
     def add_parser(self, name, *args, **kwargs):
         return self.parent._add_parser(self._subcommands, name, **kwargs)
@@ -1261,8 +1275,8 @@ class _SubParsersAction(Action):
     def _get_subcommands(self):
         return self._subcommands
 
-    def _to_parts(self, parts, traverser):
-        return traverser._subparsers_to_parts(parts, self)
+    def handle(self, traverser, parts=None):
+        return traverser.handle_subparsers(self, parts=parts)
 
     def __call__(self, parser, namespace, values, option_string=None):
         parser_name = values[0]
@@ -1718,8 +1732,8 @@ class _ArgumentGroup(_ActionsContainer):
     def _children(self):
         return self._group_actions
 
-    def _to_parts(self, parts, traverser):
-        return traverser._group_to_parts(parts, self)
+    def handle(self, traverser):
+        return traverser.handle_group(self)
 
     def _add_action(self, action):
         action = super(_ArgumentGroup, self)._add_action(action)
