@@ -261,21 +261,22 @@ class HelpFormatter(object):
 
         Argument groups are created using ArgumentParser.add_argument_group().
         """
-        # We start with no indent.
-        current_indent = self._indent(current_indent)
+        more_indent = self._indent(current_indent)
 
         contents = []
         for action in group._group_actions:
             if action.help is SUPPRESS:
                 continue
-            action._to_parts(contents, self, current_indent)
+            action._to_parts(contents, self, more_indent)
 
-        item_help = self._join_parts(contents)
-        if not item_help:
+        help = self._join_parts(contents)
+        if not help:
             return
-        self._section_to_parts(parts, item_help, indent_size=0, parent=True,
-                               heading=group.title,
-                               description=group.description)
+
+        heading = self.format_section_heading(group.title, current_indent)
+        description = self._format_text_checked(group.description, more_indent)
+
+        parts.extend(['\n', heading, description, help, '\n'])
 
     def _add_subcommand_group(self, parts, group, current_indent):
         """Format any sub-commands, and add them to the given parts.
@@ -301,20 +302,6 @@ class HelpFormatter(object):
             return ''
         return '%*s%s:\n' % (current_indent, '', heading)
 
-    def _section_to_parts(self, parts, contents, indent_size, parent=False,
-                          heading=None, description=None):
-        """
-        Arguments:
-          contents: a list of strings making up the section "inside."
-        """
-        heading = self.format_section_heading(heading, current_indent=indent_size)
-
-        if parent:
-            indent_size = self._indent(indent_size)
-        description = self._format_text_checked(description, indent_size)
-
-        parts.extend(['\n', heading, description, contents, '\n'])
-
     def _format_parser_usage(self, parser):
         if parser.usage is SUPPRESS:
             return ''
@@ -323,19 +310,16 @@ class HelpFormatter(object):
                                        prefix=None, indent_size=0)
         return usage
 
-    def normalize_help(self, help):
-        if help:
-            help = self._long_break_matcher.sub('\n\n', help)
-            help = help.strip('\n') + '\n'
-        return help
-
     def _finalize_help(self, contents):
         """
         Arguments:
           contents: an iterable of strings.
         """
         help = self._join_parts(contents)
-        return self.normalize_help(help)
+        if help:
+            help = self._long_break_matcher.sub('\n\n', help)
+            help = help.strip('\n') + '\n'
+        return help
 
     def format_usage(self, parser):
         usage = self._format_parser_usage(parser)
