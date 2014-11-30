@@ -268,10 +268,7 @@ class HelpFormatter(object):
             child._to_parts(parts, self, current_indent)
 
     def _group_to_parts(self, parts, group, current_indent):
-        """Format an argument group like "positionals" or "optionals".
-
-        Argument groups are created using ArgumentParser.add_argument_group().
-        """
+        """Format an _ArgumentGroup or _ParserGroup object."""
         more_indent = self._indent(current_indent)
 
         action_parts = []
@@ -286,12 +283,13 @@ class HelpFormatter(object):
         parts.extend(['\n', heading, description, action_help, '\n'])
 
     def _subparsers_to_parts(self, parts, action, current_indent):
-        """Format the subparsers action."""
-        more_indent = self._indent(current_indent)
+        """Format a _SubParsersAction."""
         self._action_to_parts(parts, action, current_indent)
+        # Sub-commands not in any group.
+        more_indent = self._indent(current_indent)
         self._children_to_parts(parts, action._subcommands, more_indent)
-        for group in action._children:
-            group._to_parts(parts, self, current_indent=current_indent)
+        # Subparser groups (i.e. groups of sub-commands)
+        self._children_to_parts(parts, action._subgroups, current_indent)
 
     def _format_parser_usage(self, parser):
         if parser.usage is SUPPRESS:
@@ -1099,6 +1097,8 @@ class _ParserGroup(object):
         corresponding to the sub-commands in the group.
     """
 
+    suppress_help = False
+
     def __init__(self, parent, title, description=None):
         """
         Arguments:
@@ -1162,10 +1162,6 @@ class _SubParsersAction(Action):
             choices=self._name_parser_map,
             help=help,
             metavar=metavar)
-
-    @property
-    def _children(self):
-        return self._subgroups
 
     def _add_parser(self, _subcommands, name, **kwargs):
         """
