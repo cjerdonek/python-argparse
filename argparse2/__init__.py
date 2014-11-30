@@ -86,6 +86,7 @@ __all__ = [
 
 
 import collections as _collections
+from contextlib import contextmanager as _contextmanager
 import copy as _copy
 import os as _os
 import re as _re
@@ -162,6 +163,15 @@ class _TraverserBase(object):
 
     def dedent(self):
         self.current_indent -= self.indent_increment
+        assert self.current_indent >= 0, 'Indent decreased below 0.'
+
+    @_contextmanager
+    def indenting(self):
+        self.indent()
+        try:
+            yield
+        finally:
+            self.dedent()
 
     def on_root(self, parser):
         raise NotImplementedError()
@@ -228,7 +238,6 @@ class _FormatTraverser(_TraverserBase):
         self.indent()
         try:
             more_indent = self.current_indent
-            #more_indent = formatter._indent(current_indent)
             _children_to_parts(formatter, parts, action._subcommands, more_indent, traverser=traverser)
             # Subparser groups (i.e. groups of sub-commands)
             _children_to_parts(traverser, parts, action._subgroups, more_indent, traverser=traverser)
@@ -245,7 +254,6 @@ class _FormatTraverser(_TraverserBase):
         self.indent()
         try:
             more_indent = self.current_indent
-            #more_indent = formatter._indent(current_indent)
             action_parts = []
             _children_to_parts(formatter, action_parts, group._children, more_indent, traverser=self)
             action_help = formatter._join_parts(action_parts)
@@ -339,17 +347,6 @@ class HelpFormatter(object):
 
         self._whitespace_matcher = _re.compile(r'\s+')
         self._long_break_matcher = _re.compile(r'\n\n\n+')
-
-    # ===============================
-    # Section and indentation methods
-    # ===============================
-    def _indent(self, current):
-        return current + self._indent_increment
-
-    def _dedent(self, current_indent):
-        current_indent -= self._indent_increment
-        assert current_indent >= 0, 'Indent decreased below 0.'
-        return current_indent
 
     # =======================
     # Help-formatting methods
