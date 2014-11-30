@@ -143,12 +143,6 @@ def _ensure_value(namespace, name, value):
 # ===============
 # Formatting Help
 # ===============
-def _children_to_parts(formatter, parts, children, current_indent, traverser):
-    for child in children:
-        if child.suppress_help:
-            continue
-        child._to_parts(parts, traverser)
-
 
 class _TraverserBase(object):
 
@@ -225,6 +219,12 @@ class _FormatTraverser(_TraverserBase):
         self.max_length = 0
         self.parts = parts
 
+    def _children_to_parts(self, parts, children):
+        for child in children:
+            if child.suppress_help:
+                continue
+            child._to_parts(parts, self)
+
     def _subparsers_to_parts(self, parts, action):
         """Format a _SubParsersAction."""
         formatter = self.formatter
@@ -234,9 +234,9 @@ class _FormatTraverser(_TraverserBase):
         # Sub-commands not in any group.
         with self.indenting():
             more_indent = self.current_indent
-            _children_to_parts(formatter, parts, action._subcommands, more_indent, traverser=self)
+            self._children_to_parts(parts, action._subcommands)
             # Subparser groups (i.e. groups of sub-commands)
-            _children_to_parts(self, parts, action._subgroups, more_indent, traverser=self)
+            self._children_to_parts(parts, action._subgroups)
 
     def _group_to_parts(self, parts, group, current_indent=None, traverser=None):
         """Format an _ArgumentGroup or _ParserGroup object."""
@@ -248,7 +248,7 @@ class _FormatTraverser(_TraverserBase):
         with self.indenting():
             more_indent = self.current_indent
             action_parts = []
-            _children_to_parts(formatter, action_parts, group._children, more_indent, traverser=self)
+            self._children_to_parts(action_parts, group._children)
             action_help = formatter._join_parts(action_parts)
 
         if not action_help:
