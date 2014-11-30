@@ -606,10 +606,6 @@ class HelpFormatter(object):
         if isinstance(action, _SubParsersAction):
             self._add_subcommands(parts, action, current_indent=indent_size)
 
-        # return a single string
-        formatted = self._join_parts(parts)
-        return formatted
-
     def _format_action_invocation(self, action):
         if not action.option_strings:
             default = self._get_default_metavar_for_positional(action)
