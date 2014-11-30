@@ -320,13 +320,19 @@ class HelpFormatter(object):
         Help-formatting diagram
         -----------------------
 
-        In the below, the number in brackets corresponds to the "level" in
-        the tree.  The amount of indentation matches the amount the
-        formatter indents such objects.  Observe that not all children
-        get indented.  For example, _ArgumentGroup objects are not
-        indented even though they are children of the root ArgumentParser.
-        If something is in parentheses, it signifies a node in the tree
-        that is not physically formatted (aside from its title, etc).
+        The diagram below is to aid understanding the "tree" structure
+        of an ArgumentParser object and how each node in the tree
+        is formatted with respect to indentation, etc.
+           In the below, the number in brackets corresponds to the
+        "level" in the tree.  The amount of indentation matches the
+        amount the formatter indents such objects.  Observe that not all
+        children get indented.  For example, _ArgumentGroup objects are
+        not indented even though they are children of the root
+        ArgumentParser.
+           If a line is in parentheses, it signifies a transition to
+        a node in the tree that is not physically formatted.  We include
+        these in the diagram for documentation purposes so that the
+        full logical parent-child relationships are visible without gaps.
 
           (ArgumentParser)
           usage [1]
@@ -336,6 +342,7 @@ class HelpFormatter(object):
             _ArgumentGroup description [2]
             Action objects [2]
             (_SubParsersAction object) [2]
+            _SubParsersAction metavar [3]
               _SubcommandPseudoAction objects [3]
               (_ParserGroup objects) [3]
               _ParserGroup title [4]
