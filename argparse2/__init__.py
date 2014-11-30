@@ -277,10 +277,10 @@ class HelpFormatter(object):
         if not action_help:
             return
 
-        heading = self._format_section_heading(group.title, current_indent)
+        title = self._format_section_heading(group.title, current_indent)
         description = self._format_text_checked(group.description, more_indent)
 
-        parts.extend(['\n', heading, description, action_help, '\n'])
+        parts.extend(['\n', title, description, action_help, '\n'])
 
     def _subparsers_to_parts(self, parts, action, current_indent):
         """Format a _SubParsersAction."""
@@ -289,7 +289,7 @@ class HelpFormatter(object):
         more_indent = self._indent(current_indent)
         self._children_to_parts(parts, action._subcommands, more_indent)
         # Subparser groups (i.e. groups of sub-commands)
-        self._children_to_parts(parts, action._subgroups, current_indent)
+        self._children_to_parts(parts, action._subgroups, more_indent)
 
     def _format_parser_usage(self, parser):
         if parser.usage is SUPPRESS:
@@ -315,12 +315,40 @@ class HelpFormatter(object):
         return self._finalize_help([usage])
 
     def format_help(self, parser):
+        """Format full help for the argument parser.
+
+        Help-formatting diagram
+        -----------------------
+
+        In the below, the leading number corresponds to the level in
+        the tree of children.  The amount of indentation corresponds to
+        the amount that the formatter indents such objects.
+        Observe that not all children get indented.  For example,
+        _ArgumentGroup objects are not indented even though they are
+        children of the root ArgumentParser.
+
+          (ArgumentParser)
+          usage [1]
+          description [1]
+          (_ArgumentGroup) [1]
+          _ArgumentGroup title [2]
+            _ArgumentGroup description [2]
+            Action objects [2]
+            (_SubParsersAction object) [2]
+              _SubcommandPseudoAction objects [3]
+              (_ParserGroup objects) [3]
+              _ParserGroup title [4]
+                _ParserGroup description [4]
+                _SubcommandPseudoAction objects [4]
+          epilog [1]
+        """
         self._action_max_length = _compute_max_action_length(parser)
 
         usage = self._format_parser_usage(parser)
         desc = self._format_text_checked(parser.description)
         parts = [usage, desc]
-        # positionals, optionals and user-defined groups
+        # _ArgumentGroup objects, for example positionals, optionals,
+        # and user-defined groups.
         self._children_to_parts(parts, parser._action_groups, current_indent=0)
         parts.append(parser.epilog)
 
