@@ -158,20 +158,20 @@ class _TraverserBase(object):
 
         self.current_indent = 0
 
-    def indent(self):
+    def _indent(self):
         self.current_indent += self.indent_increment
 
-    def dedent(self):
+    def _dedent(self):
         self.current_indent -= self.indent_increment
         assert self.current_indent >= 0, 'Indent decreased below 0.'
 
     @_contextmanager
     def indenting(self):
-        self.indent()
+        self._indent()
         try:
             yield
         finally:
-            self.dedent()
+            self._dedent()
 
     def on_root(self, parser):
         raise NotImplementedError()
@@ -205,8 +205,7 @@ class _MaxActionTraverser(_TraverserBase):
     def on_action(self, action):
         if action.help is SUPPRESS:
             return
-        self.indent()
-        try:
+        with self.indenting():
             formatter = self.formatter
             get_invocation = formatter._format_action_invocation
 
@@ -217,8 +216,6 @@ class _MaxActionTraverser(_TraverserBase):
             sub_max = max([len(s) for s in invocations])
             # Update the max.
             self.max_length = max(self.max_length, sub_max + self.current_indent)
-        finally:
-            self.dedent()
 
 
 class _FormatTraverser(_TraverserBase):
@@ -235,14 +232,11 @@ class _FormatTraverser(_TraverserBase):
 
         formatter._action_to_parts(parts, action, current_indent, traverser)
         # Sub-commands not in any group.
-        self.indent()
-        try:
+        with self.indenting():
             more_indent = self.current_indent
             _children_to_parts(formatter, parts, action._subcommands, more_indent, traverser=traverser)
             # Subparser groups (i.e. groups of sub-commands)
             _children_to_parts(traverser, parts, action._subgroups, more_indent, traverser=traverser)
-        finally:
-            self.dedent()
 
     def _group_to_parts(self, parts, group, current_indent=None, traverser=None):
         """Format an _ArgumentGroup or _ParserGroup object."""
@@ -251,25 +245,19 @@ class _FormatTraverser(_TraverserBase):
         formatter = self.formatter
         current_indent = self.current_indent
 
-        self.indent()
-        try:
+        with self.indenting():
             more_indent = self.current_indent
             action_parts = []
             _children_to_parts(formatter, action_parts, group._children, more_indent, traverser=self)
             action_help = formatter._join_parts(action_parts)
-        finally:
-            self.dedent()
 
         if not action_help:
             return
 
         title = formatter._format_section_heading(group.title, current_indent)
         parts.extend(['\n', title])
-        self.indent()
-        try:
+        with self.indenting():
             formatter._text_to_parts(parts, group.description, more_indent)
-        finally:
-            self.dedent()
         parts.extend([action_help, '\n'])
 
     def on_argument_group(self, arg_group):
