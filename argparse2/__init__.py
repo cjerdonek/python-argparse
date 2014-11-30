@@ -230,7 +230,7 @@ class _FormatTraverser(_TraverserBase):
         formatter = self.formatter
         current_indent = self.current_indent
 
-        formatter._action_to_parts(parts, action, current_indent, traverser)
+        formatter._action_to_parts(parts, action, traverser)
         # Sub-commands not in any group.
         with self.indenting():
             more_indent = self.current_indent
@@ -592,8 +592,9 @@ class HelpFormatter(object):
         # return the text
         return text
 
-    def _action_to_parts(self, parts, action, indent_size, traverser):
+    def _action_to_parts(self, parts, action, traverser):
         """Format an Action object for help display."""
+        indent_size = traverser.current_indent
         # determine the required width and the entry label
         help_position = min(self._action_max_length + 2,
                             self._max_help_position)
@@ -922,7 +923,7 @@ class Action(_AttributeHolder):
         return [(name, getattr(self, name)) for name in names]
 
     def _to_parts(self, parts, formatter, current_indent, traverser):
-        return formatter._action_to_parts(parts, self, current_indent, traverser)
+        return formatter._action_to_parts(parts, self, traverser)
 
     def __call__(self, parser, namespace, values, option_string=None):
         raise NotImplementedError(_('.__call__() not defined'))
