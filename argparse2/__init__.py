@@ -264,15 +264,17 @@ class HelpFormatter(object):
         # We start with no indent.
         current_indent = self._indent(0)
 
-        parts = []
+        contents = []
         for action in group._group_actions:
             if action.help is SUPPRESS:
                 continue
-            action._to_parts(parts, self, current_indent)
+            action._to_parts(contents, self, current_indent)
 
-        formatted = self._format_section(parts, indent_size=0, parent=True,
-                                         heading=group.title,
-                                         description=group.description)
+        parts = []
+        self._section_to_parts(parts, contents, indent_size=0, parent=True,
+                               heading=group.title,
+                               description=group.description)
+        formatted = self._join_parts(parts)
         return formatted
 
     def format_section_heading(self, heading, current_indent):
@@ -280,13 +282,14 @@ class HelpFormatter(object):
             return ''
         return '%*s%s:\n' % (current_indent, '', heading)
 
-    def _format_section(self, contents, indent_size, parent=False,
-                        heading=None, description=None):
+    def _section_to_parts(self, parts, contents, indent_size, parent=False,
+                          heading=None, description=None):
         """Return a string.
 
         Arguments:
           contents: a list of strings making up the section "inside."
         """
+        # TODO: check if I can add contents to parts.
         item_help = self._join_parts(contents)
         # return nothing if the section was empty
         if not item_help:
@@ -298,8 +301,7 @@ class HelpFormatter(object):
             indent_size = self._indent(indent_size)
         description = self._format_text_checked(description, indent_size)
 
-        parts = ['\n', heading, description, item_help, '\n']
-        return self._join_parts(parts)
+        parts.extend(['\n', heading, description, item_help, '\n'])
 
     def normalize_help(self, help):
         if help:
@@ -320,7 +322,9 @@ class HelpFormatter(object):
         Arguments:
           contents: an iterable of strings.
         """
-        help = self._format_section(contents, indent_size=0, parent=False)
+        parts = []
+        self._section_to_parts(parts, contents, indent_size=0, parent=False)
+        help = self._join_parts(parts)
         return self.normalize_help(help)
 
     def format_usage(self, parser):
