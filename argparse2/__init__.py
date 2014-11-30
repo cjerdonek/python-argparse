@@ -264,13 +264,13 @@ class HelpFormatter(object):
         # We start with no indent.
         current_indent = self._indent(0)
 
-        contents = []
+        parts = []
         for action in group._group_actions:
             if action.help is SUPPRESS:
                 continue
-            contents.append(action._format(self, current_indent))
+            action._to_parts(parts, self, current_indent)
 
-        formatted = self._format_section(contents, indent_size=0, parent=True,
+        formatted = self._format_section(parts, indent_size=0, parent=True,
                                          heading=group.title,
                                          description=group.description)
         return formatted
@@ -551,8 +551,7 @@ class HelpFormatter(object):
         """Format any sub-commands, and add them to the given parts."""
         current_indent = self._indent(current_indent)
         for subcommand in group._subcommands:
-            formatted = subcommand._format(self, current_indent)
-            parts.append(formatted)
+            subcommand._to_parts(parts, self, current_indent)
 
     def _add_subcommands(self, parts, action, current_indent):
         """Format any sub-commands, and add them to the given parts."""
@@ -562,7 +561,7 @@ class HelpFormatter(object):
             parts.extend(["\n", heading])
             self._add_subcommand_group(parts, group, current_indent)
 
-    def _format_action(self, action, indent_size):
+    def _action_to_parts(self, parts, action, indent_size):
         """Format an Action object for help display."""
         # determine the required width and the entry label
         help_position = min(self._action_max_length + 2,
@@ -589,7 +588,7 @@ class HelpFormatter(object):
             indent_first = help_position
 
         # collect the pieces of the action help
-        parts = [action_header]
+        parts.append(action_header)
 
         # if there was help for the action, add lines of help text
         if action.help:
@@ -895,8 +894,8 @@ class Action(_AttributeHolder):
         ]
         return [(name, getattr(self, name)) for name in names]
 
-    def _format(self, formatter, current_indent):
-        return formatter._format_action(self, current_indent)
+    def _to_parts(self, parts, formatter, current_indent):
+        return formatter._action_to_parts(parts, self, current_indent)
 
     def __call__(self, parser, namespace, values, option_string=None):
         raise NotImplementedError(_('.__call__() not defined'))
