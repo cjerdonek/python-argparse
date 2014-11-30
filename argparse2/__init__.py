@@ -1676,6 +1676,10 @@ class _ArgumentGroup(_ActionsContainer):
             container._has_negative_number_optionals
         self._mutually_exclusive_groups = container._mutually_exclusive_groups
 
+    # TODO: start using this.
+    def _to_parts(self, parts, formatter, current_indent):
+        return formatter._group_to_parts(parts, self, current_indent)
+
     def _add_action(self, action):
         action = super(_ArgumentGroup, self)._add_action(action)
         self._group_actions.append(action)
