@@ -301,12 +301,12 @@ class HelpFormatter(object):
                                        prefix=None, indent_size=0)
         return usage
 
-    def _finalize_help(self, contents):
+    def _finalize_help(self, parts):
         """
         Arguments:
           contents: an iterable of strings.
         """
-        help = self._join_parts(contents)
+        help = self._join_parts(parts)
         if help:
             help = self._long_break_matcher.sub('\n\n', help)
             help = help.strip('\n') + '\n'
@@ -322,10 +322,10 @@ class HelpFormatter(object):
         usage = self._format_parser_usage(parser)
         desc = self._format_text_checked(parser.description)
         parts = [usage, desc]
-
         # positionals, optionals and user-defined groups
         self._children_to_parts(parts, parser._action_groups, current_indent=0)
         parts.append(parser.epilog)
+
         return self._finalize_help(parts)
 
     def _join_parts(self, part_strings):
