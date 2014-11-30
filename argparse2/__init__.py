@@ -256,13 +256,13 @@ class HelpFormatter(object):
     # =======================
     # Help-formatting methods
     # =======================
-    def format_argument_group(self, group):
+    def _group_to_parts(self, parts, group, current_indent):
         """Format an argument group like "positionals" or "optionals".
 
         Argument groups are created using ArgumentParser.add_argument_group().
         """
         # We start with no indent.
-        current_indent = self._indent(0)
+        current_indent = self._indent(current_indent)
 
         contents = []
         for action in group._group_actions:
@@ -270,12 +270,9 @@ class HelpFormatter(object):
                 continue
             action._to_parts(contents, self, current_indent)
 
-        parts = []
         self._section_to_parts(parts, contents, indent_size=0, parent=True,
                                heading=group.title,
                                description=group.description)
-        formatted = self._join_parts(parts)
-        return formatted
 
     def format_section_heading(self, heading, current_indent):
         if heading is SUPPRESS or heading is None:
@@ -336,15 +333,14 @@ class HelpFormatter(object):
 
         usage = self._format_parser_usage(parser)
         desc = self._format_text_checked(parser.description)
-        contents = [usage, desc]
+        parts = [usage, desc]
 
         # positionals, optionals and user-defined groups
-        for action_group in parser._action_groups:
-            group_text = self.format_argument_group(action_group)
-            contents.append(group_text)
-        contents.append(parser.epilog)
-
-        return self._finalize_help(contents)
+        for group in parser._action_groups:
+            group._to_parts(parts, self, current_indent=0)
+        parts.append(parser.epilog)
+        help = self._join_parts(parts)
+        return self._finalize_help(help)
 
     def _join_parts(self, part_strings):
         return ''.join([part
@@ -1680,7 +1676,6 @@ class _ArgumentGroup(_ActionsContainer):
             container._has_negative_number_optionals
         self._mutually_exclusive_groups = container._mutually_exclusive_groups
 
-    # TODO: start using this.
     def _to_parts(self, parts, formatter, current_indent):
         return formatter._group_to_parts(parts, self, current_indent)
 
