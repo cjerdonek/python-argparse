@@ -256,6 +256,11 @@ class HelpFormatter(object):
     # =======================
     # Help-formatting methods
     # =======================
+    def _format_section_heading(self, heading, current_indent):
+        if heading is SUPPRESS or heading is None:
+            return ''
+        return '%*s%s:\n' % (current_indent, '', heading)
+
     def _group_to_parts(self, parts, group, current_indent):
         """Format an argument group like "positionals" or "optionals".
 
@@ -263,20 +268,20 @@ class HelpFormatter(object):
         """
         more_indent = self._indent(current_indent)
 
-        contents = []
+        action_parts = []
         for action in group._group_actions:
             if action.help is SUPPRESS:
                 continue
-            action._to_parts(contents, self, more_indent)
+            action._to_parts(action_parts, self, more_indent)
 
-        help = self._join_parts(contents)
-        if not help:
+        action_help = self._join_parts(action_parts)
+        if not action_help:
             return
 
-        heading = self.format_section_heading(group.title, current_indent)
+        heading = self._format_section_heading(group.title, current_indent)
         description = self._format_text_checked(group.description, more_indent)
 
-        parts.extend(['\n', heading, description, help, '\n'])
+        parts.extend(['\n', heading, description, action_help, '\n'])
 
     def _add_subcommand_group(self, parts, group, current_indent):
         """Format any sub-commands, and add them to the given parts.
@@ -293,14 +298,9 @@ class HelpFormatter(object):
         self._action_to_parts(parts, action, current_indent)
         self._add_subcommand_group(parts, action, current_indent)
         for group in action._subgroups:
-            heading = self.format_section_heading(group.name, current_indent=current_indent)
+            heading = self._format_section_heading(group.name, current_indent=current_indent)
             parts.extend(["\n", heading])
             self._add_subcommand_group(parts, group, current_indent)
-
-    def format_section_heading(self, heading, current_indent):
-        if heading is SUPPRESS or heading is None:
-            return ''
-        return '%*s%s:\n' % (current_indent, '', heading)
 
     def _format_parser_usage(self, parser):
         if parser.usage is SUPPRESS:
