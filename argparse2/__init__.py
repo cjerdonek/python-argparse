@@ -1,4 +1,6 @@
-# Author: Steven J. Bethard <steven.bethard@gmail.com>.
+# Authors:
+#   Steven J. Bethard <steven.bethard@gmail.com>
+#   Chris Jerdonek <chris.jerdonek@gmail.com>
 
 """Command-line parsing library
 
