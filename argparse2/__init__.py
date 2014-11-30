@@ -215,8 +215,24 @@ class _FormatTraverser(_TraverserBase):
         self.max_length = 0
         self.parts = parts
 
+    def _group_to_parts(self, parts, group, current_indent):
+        """Format an _ArgumentGroup or _ParserGroup object."""
+        formatter = self.formatter
+        more_indent = formatter._indent(current_indent)
+
+        action_parts = []
+        _children_to_parts(formatter, action_parts, group._children, more_indent)
+        action_help = formatter._join_parts(action_parts)
+        if not action_help:
+            return
+
+        title = formatter._format_section_heading(group.title, current_indent)
+        parts.extend(['\n', title])
+        formatter._text_to_parts(parts, group.description, more_indent)
+        parts.extend([action_help, '\n'])
+
     def on_argument_group(self, arg_group):
-        arg_group._to_parts(self.parts, self.formatter, self.current_indent)
+        arg_group._to_parts(self.parts, traverser=self, current_indent=self.current_indent)
 
 
 def _compute_max_action_length(parser):
@@ -305,63 +321,9 @@ class HelpFormatter(object):
     # =======================
     # Help-formatting methods
     # =======================
-    def _format_text(self, text, indent_size=0):
-        """Raises TypeError if text is None."""
-        if '%(prog)' in text:
-            text = text % dict(prog=self._prog)
-        text_width = max(self._width - indent_size, 11)
-        indent = indent_size * ' '
-        return self._fill_text(text, text_width, indent) + '\n\n'
-
-    def _format_section_heading(self, heading, current_indent):
-        return '%*s%s:\n' % (current_indent, '', heading)
-
-    def _text_to_parts(self, parts, text, indent_size=0):
-        if text is None:
-            return
-        parts.append(self._format_text(text, indent_size))
-
-    def _group_to_parts(self, parts, group, current_indent):
-        """Format an _ArgumentGroup or _ParserGroup object."""
-        more_indent = self._indent(current_indent)
-
-        action_parts = []
-        _children_to_parts(self, action_parts, group._children, more_indent)
-        action_help = self._join_parts(action_parts)
-        if not action_help:
-            return
-
-        title = self._format_section_heading(group.title, current_indent)
-        parts.extend(['\n', title])
-        self._text_to_parts(parts, group.description, more_indent)
-        parts.extend([action_help, '\n'])
-
-    def _subparsers_to_parts(self, parts, action, current_indent):
-        """Format a _SubParsersAction."""
-        self._action_to_parts(parts, action, current_indent)
-        # Sub-commands not in any group.
-        more_indent = self._indent(current_indent)
-        _children_to_parts(self, parts, action._subcommands, more_indent)
-        # Subparser groups (i.e. groups of sub-commands)
-        _children_to_parts(self, parts, action._subgroups, more_indent)
-
-    def _help_to_parts(self, parts, parser):
-        """Format a _SubParsersAction."""
-        traverser = _FormatTraverser(formatter=self, parts=parts)
-
-        usage = self._format_parser_usage(parser)
-        parts.append(usage)
-        self._text_to_parts(parts, parser.description)
-        traverser.traverse(parser)
-        parts.append(parser.epilog)
-
-    def _format_parser_usage(self, parser):
-        if parser.usage is SUPPRESS:
-            return ''
-        usage = self._format_raw_usage(parser.usage, parser._actions,
-                                       parser._mutually_exclusive_groups,
-                                       prefix=None, indent_size=0)
-        return usage
+    def _join_parts(self, part_strings):
+        return ''.join(part for part in part_strings
+                       if part and part is not SUPPRESS)
 
     def _normalize_help(self, help):
         help = self._long_break_matcher.sub('\n\n', help)
@@ -389,9 +351,48 @@ class HelpFormatter(object):
         self._help_to_parts(parts, parser)
         return self._finalize_help(parts)
 
-    def _join_parts(self, part_strings):
-        return ''.join(part for part in part_strings
-                       if part and part is not SUPPRESS)
+    def _format_text(self, text, indent_size=0):
+        """Raises TypeError if text is None."""
+        if '%(prog)' in text:
+            text = text % dict(prog=self._prog)
+        text_width = max(self._width - indent_size, 11)
+        indent = indent_size * ' '
+        return self._fill_text(text, text_width, indent) + '\n\n'
+
+    def _format_section_heading(self, heading, current_indent):
+        return '%*s%s:\n' % (current_indent, '', heading)
+
+    def _text_to_parts(self, parts, text, indent_size=0):
+        if text is None:
+            return
+        parts.append(self._format_text(text, indent_size))
+
+    def _subparsers_to_parts(self, parts, action, current_indent):
+        """Format a _SubParsersAction."""
+        self._action_to_parts(parts, action, current_indent)
+        # Sub-commands not in any group.
+        more_indent = self._indent(current_indent)
+        _children_to_parts(self, parts, action._subcommands, more_indent)
+        # Subparser groups (i.e. groups of sub-commands)
+        _children_to_parts(self, parts, action._subgroups, more_indent)
+
+    def _help_to_parts(self, parts, parser):
+        """Format a _SubParsersAction."""
+        traverser = _FormatTraverser(formatter=self, parts=parts)
+
+        usage = self._format_parser_usage(parser)
+        parts.append(usage)
+        self._text_to_parts(parts, parser.description)
+        traverser.traverse(parser)
+        parts.append(parser.epilog)
+
+    def _format_parser_usage(self, parser):
+        if parser.usage is SUPPRESS:
+            return ''
+        usage = self._format_raw_usage(parser.usage, parser._actions,
+                                       parser._mutually_exclusive_groups,
+                                       prefix=None, indent_size=0)
+        return usage
 
     def _format_raw_usage(self, usage, actions, groups, prefix, indent_size):
         if prefix is None:
@@ -1711,8 +1712,8 @@ class _ArgumentGroup(_ActionsContainer):
     def _children(self):
         return self._group_actions
 
-    def _to_parts(self, parts, formatter, current_indent):
-        return formatter._group_to_parts(parts, self, current_indent)
+    def _to_parts(self, parts, traverser, current_indent):
+        return traverser._group_to_parts(parts, self, current_indent)
 
     def _add_action(self, action):
         action = super(_ArgumentGroup, self)._add_action(action)
