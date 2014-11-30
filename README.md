@@ -22,11 +22,11 @@ The PyPI page for the project is [here][argparse2-pypi].
 Background
 ----------
 
-The code in the original argparse module is complicated.  Moreover,
-as part of the CPython code base, the pace of change to the module
-is slow.  This makes major refactorings impractical or not possible.
-As Guido van Rossum is fond of saying (partly with tongue-in-cheek),
-code in the standard library has "one foot in the grave."
+The code in the original argparse module is complicated.  And being
+part of CPython, the pace of change to the module is slow.  This
+makes major refactorings impractical or not possible.
+As Guido van Rossum is fond of saying with tongue-in-cheek, modules
+in the standard library have "one foot in the grave."
 
 This project was started to break free of those constraints and breathe
 new life into argparse.  The module was forked from the tip of the
