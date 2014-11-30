@@ -270,7 +270,10 @@ class HelpFormatter(object):
                 continue
             action._to_parts(contents, self, current_indent)
 
-        self._section_to_parts(parts, contents, indent_size=0, parent=True,
+        item_help = self._join_parts(contents)
+        if not item_help:
+            return
+        self._section_to_parts(parts, item_help, indent_size=0, parent=True,
                                heading=group.title,
                                description=group.description)
 
@@ -300,30 +303,17 @@ class HelpFormatter(object):
 
     def _section_to_parts(self, parts, contents, indent_size, parent=False,
                           heading=None, description=None):
-        """Return a string.
-
+        """
         Arguments:
           contents: a list of strings making up the section "inside."
         """
-        # TODO: check if I can add contents to parts.
-        item_help = self._join_parts(contents)
-        # return nothing if the section was empty
-        if not item_help:
-            return ''
-
         heading = self.format_section_heading(heading, current_indent=indent_size)
 
         if parent:
             indent_size = self._indent(indent_size)
         description = self._format_text_checked(description, indent_size)
 
-        parts.extend(['\n', heading, description, item_help, '\n'])
-
-    def normalize_help(self, help):
-        if help:
-            help = self._long_break_matcher.sub('\n\n', help)
-            help = help.strip('\n') + '\n'
-        return help
+        parts.extend(['\n', heading, description, contents, '\n'])
 
     def _format_parser_usage(self, parser):
         if parser.usage is SUPPRESS:
@@ -333,14 +323,18 @@ class HelpFormatter(object):
                                        prefix=None, indent_size=0)
         return usage
 
+    def normalize_help(self, help):
+        if help:
+            help = self._long_break_matcher.sub('\n\n', help)
+            help = help.strip('\n') + '\n'
+        return help
+
     def _finalize_help(self, contents):
         """
         Arguments:
           contents: an iterable of strings.
         """
-        parts = []
-        self._section_to_parts(parts, contents, indent_size=0, parent=False)
-        help = self._join_parts(parts)
+        help = self._join_parts(contents)
         return self.normalize_help(help)
 
     def format_usage(self, parser):
@@ -358,13 +352,11 @@ class HelpFormatter(object):
         for group in parser._action_groups:
             group._to_parts(parts, self, current_indent=0)
         parts.append(parser.epilog)
-        help = self._join_parts(parts)
-        return self._finalize_help(help)
+        return self._finalize_help(parts)
 
     def _join_parts(self, part_strings):
-        return ''.join([part
-                        for part in part_strings
-                        if part and part is not SUPPRESS])
+        return ''.join(part for part in part_strings
+                       if part and part is not SUPPRESS)
 
     def _format_raw_usage(self, usage, actions, groups, prefix, indent_size):
         if prefix is None:
