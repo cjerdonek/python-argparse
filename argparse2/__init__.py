@@ -169,9 +169,6 @@ class _TraverserBase(object):
         finally:
             self._dedent()
 
-    def on_root(self, parser):
-        raise NotImplementedError()
-
     def on_action(self, action):
         raise NotImplementedError()
 
@@ -203,7 +200,7 @@ class _MaxActionTraverser(_TraverserBase):
         super().__init__(formatter=formatter)
         self.max_length = 0
 
-    def handle_group(self, arg_group, parts=None):
+    def handle_group(self, arg_group):
         for action in arg_group._children:
             self.on_action(action)
 
@@ -225,20 +222,17 @@ class _MaxActionTraverser(_TraverserBase):
 
 class _FormatTraverser(_TraverserBase):
 
-    def __init__(self, formatter, indent_size=None, parts=None):
-        if parts is None:
-            parts = []
+    def __init__(self, formatter, indent_size=None):
         super().__init__(formatter=formatter, indent_size=indent_size)
         self.max_length = 0
-        self.parts = parts
+        self.parts = []
 
-    # TODO: remove the parts argument.
-    def _children_to_parts(self, children, parts=None):
+    def _children_to_parts(self, children):
         for child in children:
             if child.suppress_help:
                 continue
             try:
-                child.handle(self, parts=parts)
+                child.handle(self)
             except:
                 raise Exception("child: %r" % child)
 
@@ -252,16 +246,13 @@ class _FormatTraverser(_TraverserBase):
         super().handle_parser(parser)
         parts.append(parser.epilog)
 
-    def handle_group(self, group, parts=None):
-        if parts is None:
-            parts = self.parts
+    def handle_group(self, group):
+        parts = self.parts
         formatter = self.formatter
 
-        # TODO: work on simplifying this block to decouple logic.
         with self.indenting():
             action_help = formatter._format_children(group._children,
                                     indent_size=self.current_indent)
-
         if not action_help:
             return
 
@@ -271,26 +262,24 @@ class _FormatTraverser(_TraverserBase):
             formatter._text_to_parts(parts, group.description, self.current_indent)
         parts.extend([action_help, '\n'])
 
-    def handle_action(self, action, parts=None):
+    def handle_action(self, action):
         """Format a (non-subparsers) Action."""
-        if parts is None:
-            parts = self.parts
+        parts = self.parts
         formatter = self.formatter
         formatter._action_to_parts(parts, action, traverser=self)
 
-    def handle_subparsers(self, subparsers, parts=None):
+    def handle_subparsers(self, subparsers):
         """Format a _SubParsersAction."""
-        if parts is None:
-            parts = self.parts
+        parts = self.parts
         formatter = self.formatter
         current_indent = self.current_indent
 
         formatter._action_to_parts(parts, subparsers, traverser=self)
         # Sub-commands not in any group.
         with self.indenting():
-            self._children_to_parts(subparsers._subcommands, parts=parts)
+            self._children_to_parts(subparsers._subcommands)
             # Subparser groups (i.e. groups of sub-commands)
-            self._children_to_parts(subparsers._subgroups, parts=parts)
+            self._children_to_parts(subparsers._subgroups)
 
 
 class HelpFormatter(object):
@@ -390,26 +379,20 @@ class HelpFormatter(object):
         The _action_max_length attribute must be set on self before
         calling this method.
         """
-        parts = []
-        traverser = _FormatTraverser(formatter=self, indent_size=indent_size,
-                                     parts=parts)
+        traverser = _FormatTraverser(formatter=self, indent_size=indent_size)
         traverser._children_to_parts(children)
+        parts = traverser.parts
         return self._join_parts(parts)
 
+    # TODO: DRY this up with _format_children().
     def format(self, obj, indent_size=None):
         if indent_size is None:
             indent_size = 0
-        parts = []
         self._action_max_length = self._compute_max_action_length(obj)
-        traverser = _FormatTraverser(formatter=self, indent_size=indent_size,
-                                     parts=parts)
+        traverser = _FormatTraverser(formatter=self, indent_size=indent_size)
         obj.handle(traverser)
+        parts = traverser.parts
         return self._join_parts(parts)
-
-    def _help_to_parts(self, parts, parser):
-        """Format a _SubParsersAction."""
-        traverser = _FormatTraverser(formatter=self, parts=parts)
-        parser.handle(traverser)
 
     def format_usage(self, parser):
         usage = self._format_parser_usage(parser)
@@ -964,8 +947,8 @@ class Action(_AttributeHolder):
         ]
         return [(name, getattr(self, name)) for name in names]
 
-    def handle(self, traverser, parts=None):
-        traverser.handle_action(self, parts=parts)
+    def handle(self, traverser):
+        traverser.handle_action(self)
 
     def __call__(self, parser, namespace, values, option_string=None):
         raise NotImplementedError(_('.__call__() not defined'))
@@ -1220,8 +1203,8 @@ class _ParserGroup(object):
     def _children(self):
         return self._subcommands
 
-    def handle(self, traverser, parts=None):
-        return traverser.handle_group(self, parts=parts)
+    def handle(self, traverser):
+        return traverser.handle_group(self)
 
     def add_parser(self, name, *args, **kwargs):
         return self.parent._add_parser(self._subcommands, name, **kwargs)
@@ -1307,8 +1290,8 @@ class _SubParsersAction(Action):
     def _get_subcommands(self):
         return self._subcommands
 
-    def handle(self, traverser, parts=None):
-        return traverser.handle_subparsers(self, parts=parts)
+    def handle(self, traverser):
+        return traverser.handle_subparsers(self)
 
     def __call__(self, parser, namespace, values, option_string=None):
         parser_name = values[0]
