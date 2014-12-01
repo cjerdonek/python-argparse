@@ -173,6 +173,10 @@ class _TraverserBase(object):
     def on_action(self, action):
         raise NotImplementedError()
 
+    def handle_group(self, arg_group):
+        """Handle an _ArgumentGroup or _ParserGroup object."""
+        raise NotImplementedError()
+
     def traverse(self, parser):
         # _ArgumentGroup objects, for example positionals, optionals,
         # and user-defined groups.
@@ -192,6 +196,10 @@ class _MaxActionTraverser(_TraverserBase):
         super().__init__(formatter=formatter)
         self.max_length = 0
 
+    def handle_group(self, arg_group):
+        for action in arg_group._children:
+            self.on_action(action)
+
     def on_action(self, action):
         if action.help is SUPPRESS:
             return
@@ -206,10 +214,6 @@ class _MaxActionTraverser(_TraverserBase):
             sub_max = max([len(s) for s in invocations])
             # Update the max.
             self.max_length = max(self.max_length, sub_max + self.current_indent)
-
-    def handle_group(self, arg_group):
-        for action in arg_group._group_actions:
-            self.on_action(action)
 
 
 class _FormatTraverser(_TraverserBase):
@@ -228,6 +232,25 @@ class _FormatTraverser(_TraverserBase):
                 child.handle(self, parts=parts)
             except:
                 raise Exception("child: %r" % child)
+
+    def handle_group(self, group, parts=None):
+        if parts is None:
+            parts = self.parts
+        formatter = self.formatter
+
+        with self.indenting():
+            action_parts = []
+            self._children_to_parts(group._children, parts=action_parts)
+            action_help = formatter._join_parts(action_parts)
+
+        if not action_help:
+            return
+
+        title = formatter._format_section_heading(group.title, self.current_indent)
+        parts.extend(['\n', title])
+        with self.indenting():
+            formatter._text_to_parts(parts, group.description, self.current_indent)
+        parts.extend([action_help, '\n'])
 
     def handle_action(self, action, parts=None):
         """Format a (non-subparsers) Action."""
@@ -249,26 +272,6 @@ class _FormatTraverser(_TraverserBase):
             self._children_to_parts(subparsers._subcommands, parts=parts)
             # Subparser groups (i.e. groups of sub-commands)
             self._children_to_parts(subparsers._subgroups, parts=parts)
-
-    def handle_group(self, group, parts=None):
-        """Format an _ArgumentGroup or _ParserGroup object."""
-        if parts is None:
-            parts = self.parts
-        formatter = self.formatter
-
-        with self.indenting():
-            action_parts = []
-            self._children_to_parts(group._children, parts=action_parts)
-            action_help = formatter._join_parts(action_parts)
-
-        if not action_help:
-            return
-
-        title = formatter._format_section_heading(group.title, self.current_indent)
-        parts.extend(['\n', title])
-        with self.indenting():
-            formatter._text_to_parts(parts, group.description, self.current_indent)
-        parts.extend([action_help, '\n'])
 
 
 def _compute_max_action_length(parser):
