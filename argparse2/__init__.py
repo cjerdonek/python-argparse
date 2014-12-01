@@ -179,7 +179,7 @@ class _TraverserBase(object):
         for arg_group in parser._action_groups:
             if arg_group.suppress_help:
                 continue
-            self.on_argument_group(arg_group)
+            arg_group.handle(self)
         if self.current_indent != 0:
             raise AssertionError("current indent not zero: %d" % self.current_indent)
 
@@ -207,7 +207,7 @@ class _MaxActionTraverser(_TraverserBase):
             # Update the max.
             self.max_length = max(self.max_length, sub_max + self.current_indent)
 
-    def on_argument_group(self, arg_group):
+    def handle_group(self, arg_group):
         for action in arg_group._group_actions:
             self.on_action(action)
 
@@ -269,9 +269,6 @@ class _FormatTraverser(_TraverserBase):
         with self.indenting():
             formatter._text_to_parts(parts, group.description, self.current_indent)
         parts.extend([action_help, '\n'])
-
-    def on_argument_group(self, arg_group):
-        arg_group.handle(self)
 
 
 def _compute_max_action_length(parser):
