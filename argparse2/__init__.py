@@ -146,7 +146,7 @@ def _ensure_value(namespace, name, value):
 
 class _TraverserBase(object):
 
-    def __init__(self, formatter):
+    def __init__(self, formatter, initial_indent=None):
         self.formatter = formatter
         self.indent_increment = formatter._indent_increment
 
@@ -174,10 +174,15 @@ class _TraverserBase(object):
         raise NotImplementedError()
 
     def handle_group(self, arg_group):
-        """Handle an _ArgumentGroup or _ParserGroup object."""
+        """Handle an _ArgumentGroup or _ParserGroup object.
+
+        If group is an _ArgumentGroup, then the children are Action
+        objects.  If group is a _ParserGroup, then group._children are
+        _SubcommandPseudoAction objects.
+        """
         raise NotImplementedError()
 
-    def traverse(self, parser):
+    def handle_parser(self, parser):
         # _ArgumentGroup objects, for example positionals, optionals,
         # and user-defined groups.
         for arg_group in parser._action_groups:
@@ -218,7 +223,9 @@ class _MaxActionTraverser(_TraverserBase):
 
 class _FormatTraverser(_TraverserBase):
 
-    def __init__(self, formatter, parts):
+    def __init__(self, formatter, parts=None):
+        if parts is None:
+            parts = []
         super().__init__(formatter=formatter)
         self.max_length = 0
         self.parts = parts
@@ -233,11 +240,22 @@ class _FormatTraverser(_TraverserBase):
             except:
                 raise Exception("child: %r" % child)
 
+    def handle_parser(self, parser):
+        parts = self.parts
+        formatter = self.formatter
+        usage = formatter._format_parser_usage(parser)
+        parts.append(usage)
+        formatter._text_to_parts(parts, parser.description)
+        # TODO: refactor to use the Hollywood principle instead of calling super().
+        super().handle_parser(parser)
+        parts.append(parser.epilog)
+
     def handle_group(self, group, parts=None):
         if parts is None:
             parts = self.parts
         formatter = self.formatter
 
+        # TODO: work on simplifying this block to decouple logic.
         with self.indenting():
             action_parts = []
             self._children_to_parts(group._children, parts=action_parts)
@@ -277,7 +295,7 @@ class _FormatTraverser(_TraverserBase):
 def _compute_max_action_length(parser):
     formatter = parser._get_formatter()
     traverser = _MaxActionTraverser(formatter=formatter)
-    traverser.traverse(parser)
+    parser.handle(traverser)
     return traverser.max_length
 
 
@@ -368,6 +386,19 @@ class HelpFormatter(object):
             help = self._normalize_help(help)
         return help
 
+    def format(self, obj, indent=None):
+        if indent is None:
+            indent = 0
+        parts = []
+        traverser = _FormatTraverser(formatter=self, parts=parts)
+        obj.handle(traverser)
+        return self._join_parts(parts)
+
+    def _help_to_parts(self, parts, parser):
+        """Format a _SubParsersAction."""
+        traverser = _FormatTraverser(formatter=self, parts=parts)
+        parser.handle(traverser)
+
     def format_usage(self, parser):
         usage = self._format_parser_usage(parser)
         return self._finalize_help([usage])
@@ -375,9 +406,8 @@ class HelpFormatter(object):
     def format_help(self, parser):
         """Format full help for the argument parser."""
         self._action_max_length = _compute_max_action_length(parser)
-        parts = []
-        self._help_to_parts(parts, parser)
-        return self._finalize_help(parts)
+        help = self.format(parser)
+        return self._normalize_help(help)
 
     def _format_text(self, text, indent_size=0):
         """Raises TypeError if text is None."""
@@ -394,16 +424,6 @@ class HelpFormatter(object):
         if text is None:
             return
         parts.append(self._format_text(text, indent_size))
-
-    def _help_to_parts(self, parts, parser):
-        """Format a _SubParsersAction."""
-        traverser = _FormatTraverser(formatter=self, parts=parts)
-
-        usage = self._format_parser_usage(parser)
-        parts.append(usage)
-        self._text_to_parts(parts, parser.description)
-        traverser.traverse(parser)
-        parts.append(parser.epilog)
 
     def _format_parser_usage(self, parser):
         if parser.usage is SUPPRESS:
@@ -1846,6 +1866,9 @@ class ArgumentParser(_AttributeHolder, _ActionsContainer):
             else:
                 self._defaults.update(defaults)
 
+    def handle(self, traverser):
+        return traverser.handle_parser(self)
+
     # =======================
     # Pretty __repr__ methods
     # =======================
@@ -2506,7 +2529,6 @@ class ArgumentParser(_AttributeHolder, _ActionsContainer):
     # Help-formatting methods
     # =======================
     def _get_formatter(self):
-        """Return the formatter object and a root section to start with."""
         return self.formatter_class(prog=self.prog)
 
     def format_usage(self):
