@@ -373,10 +373,10 @@ class HelpFormatter(object):
         return self._fill_text(text, text_width, indent) + '\n\n'
 
     def _format_section_heading(self, heading, current_indent):
-        return '%*s%s:\n' % (current_indent, '', heading)
+        return '%*s%s:' % (current_indent, '', heading)
 
     def _join_parts(self, parts):
-        return ''.join(part for part in parts)
+        return '\n'.join(part for part in parts)
 
     def _normalize_help(self, help):
         help = self._long_break_matcher.sub('\n\n', help)
@@ -614,31 +614,30 @@ class HelpFormatter(object):
         # no help; start on same line and add a final newline
         if not action.help:
             tup = indent_size, '', action_header
-            action_header = '%*s%s\n' % tup
+            action_header = '%*s%s' % tup
             parts.append(action_header)
             return
 
         help_position = self.help_position
         action_width = help_position - indent_size - 2
-        help_width = self.help_width
+        help_text = self._expand_help(action)
+        help_lines = self._split_lines(help_text, self.help_width)
 
         # short action name; start on the same line and pad two spaces
         if len(action_header) <= action_width:
-            tup = indent_size, '', action_width, action_header
-            action_header = '%*s%-*s  ' % tup
-            indent_first = 0
+            tup = indent_size, '', action_width, action_header, help_lines[0]
+            action_header = '%*s%-*s  %s' % tup
+            index = 1
         # long action name; start on the next line
         else:
             tup = indent_size, '', action_header
-            action_header = '%*s%s\n' % tup
+            action_header = '%*s%s' % tup
             indent_first = help_position
-        parts.append(action_header)
+            index = 0
 
-        help_text = self._expand_help(action)
-        help_lines = self._split_lines(help_text, help_width)
-        parts.append('%*s%s\n' % (indent_first, '', help_lines[0]))
-        for line in help_lines[1:]:
-            parts.append('%*s%s\n' % (help_position, '', line))
+        parts.append(action_header)
+        for line in help_lines[index:]:
+            parts.append('%*s%s' % (help_position, '', line))
 
     def _format_action_invocation(self, action):
         if not action.option_strings:
