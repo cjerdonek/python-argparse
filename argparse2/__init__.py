@@ -88,6 +88,7 @@ __all__ = [
 import collections as _collections
 from contextlib import contextmanager as _contextmanager
 import copy as _copy
+import itertools
 import os as _os
 import re as _re
 import sys as _sys
@@ -178,8 +179,8 @@ class _TraverserBase(object):
     def handle_group(self, arg_group):
         """Handle an _ArgumentGroup or _ParserGroup object.
 
-        If group is an _ArgumentGroup, then the children are Action
-        objects.  If group is a _ParserGroup, then group._children are
+        If group is an _ArgumentGroup, then group._children are Action
+        objects.  If group is a _ParserGroup, then the children are
         _SubcommandPseudoAction objects.
         """
         raise NotImplementedError()
@@ -195,32 +196,31 @@ class _TraverserBase(object):
             raise AssertionError("current indent not zero: %d" % self.current_indent)
 
 
-class _MaxActionTraverser(_TraverserBase):
+class _ActionCollector(_TraverserBase):
 
     """A traverser to determine the "max action invocation length"."""
 
     def __init__(self, formatter):
         super().__init__(formatter=formatter)
         self.max_length = 0
+        self.actions = []
 
     def handle_group(self, group):
         self._handle_children(group._children)
 
     def handle_subparsers(self, subparsers):
-        self.handle_action(subparsers)
-
-    def handle_action(self, action):
+        actions = self.actions
         with self.indenting():
             formatter = self.formatter
-            get_invocation = formatter._format_action_invocation
 
-            invocations = [get_invocation(action)]
-            for subaction in formatter._get_subcommands(action):
-                invocations.append(get_invocation(subaction))
+            actions.append((self.current_indent, subparsers))
+            for subaction in formatter._get_subcommands(subparsers):
+                actions.append((self.current_indent, subaction))
 
-            sub_max = max([len(s) for s in invocations])
-            # Update the max.
-            self.max_length = max(self.max_length, sub_max + self.current_indent)
+    def handle_action(self, action):
+        """Format a (non-subparsers) Action."""
+        with self.indenting():
+            self.actions.append((self.current_indent, action))
 
 
 class _FormatTraverser(_TraverserBase):
@@ -261,9 +261,8 @@ class _FormatTraverser(_TraverserBase):
 
     def handle_action(self, action):
         """Format a (non-subparsers) Action."""
-        parts = self.parts
         formatter = self.formatter
-        formatter._action_to_parts(parts, action, traverser=self)
+        formatter._action_to_parts(self.parts, action, traverser=self)
 
     def handle_subparsers(self, subparsers):
         """Format a _SubParsersAction."""
@@ -345,9 +344,18 @@ class HelpFormatter(object):
         self._long_break_matcher = _re.compile(r'\n\n\n+')
 
     def _compute_max_action_length(self, obj):
-        traverser = _MaxActionTraverser(formatter=self)
+        traverser = _ActionCollector(formatter=self)
         obj.handle(traverser)
-        return traverser.max_length
+        actions = traverser.actions
+        format = self._format_action_invocation
+
+        # Add "0" to the iterator to prevent the following error:
+        #   ValueError: max() arg is an empty sequence
+        iterator = itertools.chain((indent + len(format(action))
+                                    for indent, action in actions), (0, ))
+        max_length = max(iterator)
+
+        return max_length
 
     # =======================
     # Help-formatting methods
