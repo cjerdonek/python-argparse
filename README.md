@@ -4,12 +4,12 @@ argparse2
 [![Build Status](https://travis-ci.org/cjerdonek/python-argparse.svg?branch=master)](https://travis-ci.org/cjerdonek/python-argparse)
 [![Coverage Status](https://img.shields.io/coveralls/cjerdonek/python-argparse.svg)](https://coveralls.io/r/cjerdonek/python-argparse?branch=master)
 
-This is a fork of the [`argparse`][argparse] module in the Python
-standard library.
+This is a fork of the the Python standard library's [`argparse`][argparse]
+module.
 
 The purposes of the fork include--
 
-* improving the extensibility of the module,
+* improving the extensibility of argparse,
 * simplifying the code and improving its maintainability, and
 * adding features.
 
@@ -28,11 +28,11 @@ The project is installable from PyPI.  The PyPI project page is
 Background
 ----------
 
-The code in the original argparse module is complicated.  And being
+The code in the original argparse module is complicated.  Moreover, being
 part of CPython, the pace of change to the module is slow.  This
 makes major refactorings impractical or not possible.
-As Guido van Rossum is fond of saying with tongue-in-cheek, modules
-in the standard library have "one foot in the grave."
+As Guido van Rossum is fond of saying, modules in the standard library
+have "one foot in the grave."
 
 This project was started to break free of those constraints and breathe
 new life into argparse.  The module was forked from the tip of the
