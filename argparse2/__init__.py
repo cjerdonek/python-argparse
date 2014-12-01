@@ -376,7 +376,7 @@ class HelpFormatter(object):
 
     def _join_parts(self, part_strings):
         return ''.join(part for part in part_strings
-                       if part and part is not SUPPRESS)
+                       if part)
 
     def _normalize_help(self, help):
         help = self._long_break_matcher.sub('\n\n', help)
