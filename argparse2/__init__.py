@@ -214,10 +214,9 @@ class _ActionCollector(_TraverserBase):
         self.actions.append((self.current_indent, action))
 
     def handle_subparsers(self, subparsers):
-        actions = self.actions
-        actions.append((self.current_indent, subparsers))
+        self.handle_action(subparsers)
         for subaction in subparsers._subcommands:
-            actions.append((self.current_indent, subaction))
+            self.handle_action(subaction)
 
 
 class _FormatTraverser(_TraverserBase):
@@ -263,16 +262,10 @@ class _FormatTraverser(_TraverserBase):
 
     def handle_subparsers(self, subparsers):
         """Format a _SubParsersAction."""
-        parts = self.parts
-        formatter = self.formatter
-        current_indent = self.current_indent
-
-        formatter._action_to_parts(parts, subparsers, indent_size=current_indent)
-        # Sub-commands not in any group.
+        self.handle_action(subparsers)
         with self.indenting():
-            self._handle_children(subparsers._subcommands)
-            # Subparser groups (i.e. groups of sub-commands)
-            self._handle_children(subparsers._subgroups)
+            # Iterate over subcommands and subparser groups.
+            self._handle_children(subparsers._children)
 
 
 class HelpFormatter(object):
@@ -358,9 +351,7 @@ class HelpFormatter(object):
         #   ValueError: max() arg is an empty sequence
         iterator = itertools.chain((indent + len(format(action))
                                     for indent, action in actions), (0, ))
-        max_length = max(iterator)
-
-        return max_length
+        return max(iterator)
 
     # =======================
     # Help-formatting methods
@@ -1236,6 +1227,10 @@ class _SubParsersAction(Action):
             choices=self._name_parser_map,
             help=help,
             metavar=metavar)
+
+    @property
+    def _children(self):
+        return itertools.chain(self._subcommands, self._subgroups)
 
     def _add_parser(self, _subcommands, name, **kwargs):
         """
