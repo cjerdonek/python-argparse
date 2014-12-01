@@ -185,9 +185,6 @@ class _TraverserBase(object):
         """
         raise NotImplementedError()
 
-    def handle_subparsers(self, subparsers):
-        raise NotImplementedError()
-
     def handle_parser(self, parser):
         # _ArgumentGroup objects, for example positionals, optionals,
         # and user-defined groups.
@@ -195,6 +192,12 @@ class _TraverserBase(object):
         if self.current_indent != 0:
             raise AssertionError("current indent not zero: %d" % self.current_indent)
 
+    def handle_subparsers(self, subparsers):
+        """Handle a _SubParsersAction."""
+        self.handle_action(subparsers)
+        with self.indenting():
+            # Handle sub-commands and then sub-command groups.
+            self._handle_children(subparsers._children)
 
 class _ActionCollector(_TraverserBase):
 
@@ -212,11 +215,6 @@ class _ActionCollector(_TraverserBase):
     def handle_action(self, action):
         """Format a (non-subparsers) Action."""
         self.actions.append((self.current_indent, action))
-
-    def handle_subparsers(self, subparsers):
-        self.handle_action(subparsers)
-        for subaction in subparsers._subcommands:
-            self.handle_action(subaction)
 
 
 class _FormatTraverser(_TraverserBase):
@@ -259,13 +257,6 @@ class _FormatTraverser(_TraverserBase):
         """Format a (non-subparsers) Action."""
         formatter = self.formatter
         formatter._action_to_parts(self.parts, action, indent_size=self.current_indent)
-
-    def handle_subparsers(self, subparsers):
-        """Format a _SubParsersAction."""
-        self.handle_action(subparsers)
-        with self.indenting():
-            # Iterate over subcommands and subparser groups.
-            self._handle_children(subparsers._children)
 
 
 class HelpFormatter(object):
