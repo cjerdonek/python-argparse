@@ -272,7 +272,8 @@ class _FormatTraverser(_TraverserBase):
         self._handle_text(parts, parser.description)
         # TODO: refactor to use the Hollywood principle instead of calling super().
         super().handle_parser(parser)
-        parts.append(parser.epilog)
+        if parser.epilog is not None:
+            parts.append(parser.epilog)
 
 
 class HelpFormatter(object):
@@ -374,9 +375,8 @@ class HelpFormatter(object):
     def _format_section_heading(self, heading, current_indent):
         return '%*s%s:\n' % (current_indent, '', heading)
 
-    def _join_parts(self, part_strings):
-        return ''.join(part for part in part_strings
-                       if part)
+    def _join_parts(self, parts):
+        return ''.join(part for part in parts)
 
     def _normalize_help(self, help):
         help = self._long_break_matcher.sub('\n\n', help)
