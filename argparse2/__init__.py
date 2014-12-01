@@ -173,10 +173,7 @@ class _TraverserBase(object):
         for child in children:
             if child.suppress_help:
                 continue
-            try:
-                child.handle(self)
-            except:
-                raise Exception("child: %r" % child)
+            child.handle(self)
 
     def handle_group(self, arg_group):
         """Handle an _ArgumentGroup or _ParserGroup object.
@@ -185,6 +182,9 @@ class _TraverserBase(object):
         objects.  If group is a _ParserGroup, then group._children are
         _SubcommandPseudoAction objects.
         """
+        raise NotImplementedError()
+
+    def handle_subparsers(self, subparsers):
         raise NotImplementedError()
 
     def handle_parser(self, parser):
@@ -203,9 +203,13 @@ class _MaxActionTraverser(_TraverserBase):
         super().__init__(formatter=formatter)
         self.max_length = 0
 
-    def _handle_action(self, action):
-        if action.help is SUPPRESS:
-            return
+    def handle_group(self, arg_group):
+        self._handle_children(arg_group._children)
+
+    def handle_subparsers(self, subparsers):
+        self.handle_action(subparsers)
+
+    def handle_action(self, action):
         with self.indenting():
             formatter = self.formatter
             get_invocation = formatter._format_action_invocation
@@ -217,10 +221,6 @@ class _MaxActionTraverser(_TraverserBase):
             sub_max = max([len(s) for s in invocations])
             # Update the max.
             self.max_length = max(self.max_length, sub_max + self.current_indent)
-
-    def handle_group(self, arg_group):
-        for action in arg_group._children:
-            self._handle_action(action)
 
 
 class _FormatTraverser(_TraverserBase):
