@@ -238,7 +238,7 @@ class _FormatTraverser(_TraverserBase):
     def _handle_text(self, parts, text, indent_size=0):
         if text is None:
             return
-        parts.append(self.formatter._format_text(text, indent_size))
+        parts.extend((self.formatter._format_text(text, indent_size), ''))
 
     def handle_action(self, action):
         """Format a (non-subparsers) Action."""
@@ -259,10 +259,10 @@ class _FormatTraverser(_TraverserBase):
             return
 
         title = formatter._format_section_heading(group.title, self.current_indent)
-        parts.extend(['\n', title])
+        parts.extend(('', title))
         with self.indenting():
             self._handle_text(parts, group.description, self.current_indent)
-        parts.extend([inner_help, '\n'])
+        parts.extend((inner_help, ''))
 
     def handle_parser(self, parser):
         parts = self.parts
@@ -370,13 +370,13 @@ class HelpFormatter(object):
             text = text % dict(prog=self._prog)
         text_width = max(self._width - indent_size, 11)
         indent = indent_size * ' '
-        return self._fill_text(text, text_width, indent) + '\n\n'
+        return self._fill_text(text, text_width, indent)
 
     def _format_section_heading(self, heading, current_indent):
         return '%*s%s:' % (current_indent, '', heading)
 
     def _join_parts(self, parts):
-        return '\n'.join(part for part in parts)
+        return '\n'.join(parts)
 
     def _normalize_help(self, help):
         help = self._long_break_matcher.sub('\n\n', help)
@@ -607,11 +607,10 @@ class HelpFormatter(object):
         # return the text
         return text
 
-    # TODO: see if I can simplify this method further.
     def _action_to_parts(self, parts, action, indent_size):
         """Format an Action object for help display."""
         action_header = self._format_action_invocation(action)
-        # no help; start on same line and add a final newline
+        # no help: a single line
         if not action.help:
             tup = indent_size, '', action_header
             action_header = '%*s%s' % tup
@@ -621,22 +620,19 @@ class HelpFormatter(object):
         help_position = self.help_position
         action_width = help_position - indent_size - 2
         help_text = self._expand_help(action)
-        help_lines = self._split_lines(help_text, self.help_width)
+        help_lines = iter(self._split_lines(help_text, self.help_width))
 
-        # short action name; start on the same line and pad two spaces
+        # short action name: help starts on the same line after two spaces
         if len(action_header) <= action_width:
-            tup = indent_size, '', action_width, action_header, help_lines[0]
+            tup = indent_size, '', action_width, action_header, next(help_lines)
             action_header = '%*s%-*s  %s' % tup
-            index = 1
-        # long action name; start on the next line
+        # long action name: help starts on the next line
         else:
             tup = indent_size, '', action_header
             action_header = '%*s%s' % tup
-            indent_first = help_position
-            index = 0
 
         parts.append(action_header)
-        for line in help_lines[index:]:
+        for line in help_lines:
             parts.append('%*s%s' % (help_position, '', line))
 
     def _format_action_invocation(self, action):
