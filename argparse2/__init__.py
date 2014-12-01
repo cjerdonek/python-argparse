@@ -214,7 +214,7 @@ class _ActionCollector(_TraverserBase):
             formatter = self.formatter
 
             actions.append((self.current_indent, subparsers))
-            for subaction in formatter._get_subcommands(subparsers):
+            for subaction in subparsers._subcommands:
                 actions.append((self.current_indent, subaction))
 
     def handle_action(self, action):
@@ -720,14 +720,6 @@ class HelpFormatter(object):
             choices_str = ', '.join([str(c) for c in params['choices']])
             params['choices'] = choices_str
         return self._get_help_string(action) % params
-
-    def _get_subcommands(self, action):
-        try:
-            get_subcommands = action._get_subcommands
-        except AttributeError:
-            return ()
-        else:
-            return get_subcommands()
 
     def _split_lines(self, text, width):
         text = self._whitespace_matcher.sub(' ', text).strip()
@@ -1278,10 +1270,6 @@ class _SubParsersAction(Action):
         group = _ParserGroup(self, title=title, description=description)
         self._subgroups.append(group)
         return group
-
-    # This is used only for help formatting.
-    def _get_subcommands(self):
-        return self._subcommands
 
     def handle(self, traverser):
         return traverser.handle_subparsers(self)
