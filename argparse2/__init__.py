@@ -259,9 +259,8 @@ class _FormatTraverser(_TraverserBase):
 
         # TODO: work on simplifying this block to decouple logic.
         with self.indenting():
-            action_parts = []
-            self._children_to_parts(group._children, parts=action_parts)
-            action_help = formatter._join_parts(action_parts)
+            action_help = formatter._format_children(group._children,
+                                    indent_size=self.current_indent)
 
         if not action_help:
             return
@@ -385,6 +384,17 @@ class HelpFormatter(object):
         if help:
             help = self._normalize_help(help)
         return help
+
+    def _format_children(self, children, indent_size=None):
+        """
+        The _action_max_length attribute must be set on self before
+        calling this method.
+        """
+        parts = []
+        traverser = _FormatTraverser(formatter=self, indent_size=indent_size,
+                                     parts=parts)
+        traverser._children_to_parts(children)
+        return self._join_parts(parts)
 
     def format(self, obj, indent_size=None):
         if indent_size is None:
@@ -627,6 +637,7 @@ class HelpFormatter(object):
         """Format an Action object for help display."""
         indent_size = traverser.current_indent
         # determine the required width and the entry label
+        # TODO: compute this in the constructor?
         help_position = min(self._action_max_length + 2,
                             self._max_help_position)
         help_width = max(self._width - help_position, 11)
