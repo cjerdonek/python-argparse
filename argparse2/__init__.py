@@ -146,11 +146,13 @@ def _ensure_value(namespace, name, value):
 
 class _TraverserBase(object):
 
-    def __init__(self, formatter, initial_indent=None):
+    def __init__(self, formatter, indent_size=None):
+        if indent_size is None:
+            indent_size = 0
         self.formatter = formatter
         self.indent_increment = formatter._indent_increment
 
-        self.current_indent = 0
+        self.current_indent = indent_size
 
     def _indent(self):
         self.current_indent += self.indent_increment
@@ -201,7 +203,7 @@ class _MaxActionTraverser(_TraverserBase):
         super().__init__(formatter=formatter)
         self.max_length = 0
 
-    def handle_group(self, arg_group):
+    def handle_group(self, arg_group, parts=None):
         for action in arg_group._children:
             self.on_action(action)
 
@@ -223,10 +225,10 @@ class _MaxActionTraverser(_TraverserBase):
 
 class _FormatTraverser(_TraverserBase):
 
-    def __init__(self, formatter, parts=None):
+    def __init__(self, formatter, indent_size=None, parts=None):
         if parts is None:
             parts = []
-        super().__init__(formatter=formatter)
+        super().__init__(formatter=formatter, indent_size=indent_size)
         self.max_length = 0
         self.parts = parts
 
@@ -290,13 +292,6 @@ class _FormatTraverser(_TraverserBase):
             self._children_to_parts(subparsers._subcommands, parts=parts)
             # Subparser groups (i.e. groups of sub-commands)
             self._children_to_parts(subparsers._subgroups, parts=parts)
-
-
-def _compute_max_action_length(parser):
-    formatter = parser._get_formatter()
-    traverser = _MaxActionTraverser(formatter=formatter)
-    parser.handle(traverser)
-    return traverser.max_length
 
 
 class HelpFormatter(object):
@@ -364,6 +359,11 @@ class HelpFormatter(object):
         self._whitespace_matcher = _re.compile(r'\s+')
         self._long_break_matcher = _re.compile(r'\n\n\n+')
 
+    def _compute_max_action_length(self, obj):
+        traverser = _MaxActionTraverser(formatter=self)
+        obj.handle(traverser)
+        return traverser.max_length
+
     # =======================
     # Help-formatting methods
     # =======================
@@ -386,11 +386,13 @@ class HelpFormatter(object):
             help = self._normalize_help(help)
         return help
 
-    def format(self, obj, indent=None):
-        if indent is None:
-            indent = 0
+    def format(self, obj, indent_size=None):
+        if indent_size is None:
+            indent_size = 0
         parts = []
-        traverser = _FormatTraverser(formatter=self, parts=parts)
+        self._action_max_length = self._compute_max_action_length(obj)
+        traverser = _FormatTraverser(formatter=self, indent_size=indent_size,
+                                     parts=parts)
         obj.handle(traverser)
         return self._join_parts(parts)
 
@@ -405,7 +407,6 @@ class HelpFormatter(object):
 
     def format_help(self, parser):
         """Format full help for the argument parser."""
-        self._action_max_length = _compute_max_action_length(parser)
         help = self.format(parser)
         return self._normalize_help(help)
 
