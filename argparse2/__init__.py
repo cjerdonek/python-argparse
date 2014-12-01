@@ -147,6 +147,8 @@ def _ensure_value(namespace, name, value):
 
 class _TraverserBase(object):
 
+    """Contains the tree structure of parsers and their child objects."""
+
     def __init__(self, formatter, indent_size=None):
         if indent_size is None:
             indent_size = 0
@@ -176,6 +178,10 @@ class _TraverserBase(object):
                 continue
             child.handle(self)
 
+    def handle_action(self, action):
+        """Handle a (non-subparsers) Action object."""
+        raise NotImplementedError()
+
     def handle_group(self, arg_group):
         """Handle an _ArgumentGroup or _ParserGroup object.
 
@@ -185,13 +191,6 @@ class _TraverserBase(object):
         """
         raise NotImplementedError()
 
-    def handle_parser(self, parser):
-        # _ArgumentGroup objects, for example positionals, optionals,
-        # and user-defined groups.
-        self._handle_children(parser._action_groups)
-        if self.current_indent != 0:
-            raise AssertionError("current indent not zero: %d" % self.current_indent)
-
     def handle_subparsers(self, subparsers):
         """Handle a _SubParsersAction."""
         self.handle_action(subparsers)
@@ -199,23 +198,32 @@ class _TraverserBase(object):
             # Handle sub-commands and then sub-command groups.
             self._handle_children(subparsers._children)
 
+    def handle_parser(self, parser):
+        # _ArgumentGroup objects, for example positionals, optionals,
+        # and user-defined groups.
+        self._handle_children(parser._action_groups)
+        if self.current_indent != 0:
+            raise AssertionError("current indent not zero: %d" % self.current_indent)
+
 
 class _ActionCollector(_TraverserBase):
 
-    """A traverser for collecting data for the "max action length"."""
+    """A traverser to collect the data needed to calculate the
+    "max action length" needed for formatting.
+    """
 
     def __init__(self, formatter):
         super().__init__(formatter=formatter)
         self.max_length = 0
         self.actions = []
 
+    def handle_action(self, action):
+        # Add the info needed
+        self.actions.append((self.current_indent, action))
+
     def handle_group(self, group):
         with self.indenting():
             self._handle_children(group._children)
-
-    def handle_action(self, action):
-        """Format a (non-subparsers) Action."""
-        self.actions.append((self.current_indent, action))
 
 
 class _FormatTraverser(_TraverserBase):
@@ -227,15 +235,15 @@ class _FormatTraverser(_TraverserBase):
         self.max_length = 0
         self.parts = []
 
-    def handle_parser(self, parser):
-        parts = self.parts
+    def _handle_text(self, parts, text, indent_size=0):
+        if text is None:
+            return
+        parts.append(self.formatter._format_text(text, indent_size))
+
+    def handle_action(self, action):
+        """Format a (non-subparsers) Action."""
         formatter = self.formatter
-        usage = formatter._format_parser_usage(parser)
-        parts.append(usage)
-        formatter._text_to_parts(parts, parser.description)
-        # TODO: refactor to use the Hollywood principle instead of calling super().
-        super().handle_parser(parser)
-        parts.append(parser.epilog)
+        formatter._action_to_parts(self.parts, action, indent_size=self.current_indent)
 
     def handle_group(self, group):
         parts = self.parts
@@ -253,13 +261,18 @@ class _FormatTraverser(_TraverserBase):
         title = formatter._format_section_heading(group.title, self.current_indent)
         parts.extend(['\n', title])
         with self.indenting():
-            formatter._text_to_parts(parts, group.description, self.current_indent)
+            self._handle_text(parts, group.description, self.current_indent)
         parts.extend([inner_help, '\n'])
 
-    def handle_action(self, action):
-        """Format a (non-subparsers) Action."""
+    def handle_parser(self, parser):
+        parts = self.parts
         formatter = self.formatter
-        formatter._action_to_parts(self.parts, action, indent_size=self.current_indent)
+        usage = formatter._format_parser_usage(parser)
+        parts.append(usage)
+        self._handle_text(parts, parser.description)
+        # TODO: refactor to use the Hollywood principle instead of calling super().
+        super().handle_parser(parser)
+        parts.append(parser.epilog)
 
 
 class HelpFormatter(object):
@@ -350,6 +363,17 @@ class HelpFormatter(object):
     # =======================
     # Help-formatting methods
     # =======================
+    def _format_text(self, text, indent_size=0):
+        """Raises TypeError if text is None."""
+        if '%(prog)' in text:
+            text = text % dict(prog=self._prog)
+        text_width = max(self._width - indent_size, 11)
+        indent = indent_size * ' '
+        return self._fill_text(text, text_width, indent) + '\n\n'
+
+    def _format_section_heading(self, heading, current_indent):
+        return '%*s%s:\n' % (current_indent, '', heading)
+
     def _join_parts(self, part_strings):
         return ''.join(part for part in part_strings
                        if part and part is not SUPPRESS)
@@ -385,22 +409,6 @@ class HelpFormatter(object):
         """Format full help for the argument parser."""
         help = self.format(parser)
         return self._normalize_help(help)
-
-    def _format_text(self, text, indent_size=0):
-        """Raises TypeError if text is None."""
-        if '%(prog)' in text:
-            text = text % dict(prog=self._prog)
-        text_width = max(self._width - indent_size, 11)
-        indent = indent_size * ' '
-        return self._fill_text(text, text_width, indent) + '\n\n'
-
-    def _format_section_heading(self, heading, current_indent):
-        return '%*s%s:\n' % (current_indent, '', heading)
-
-    def _text_to_parts(self, parts, text, indent_size=0):
-        if text is None:
-            return
-        parts.append(self._format_text(text, indent_size))
 
     def _format_parser_usage(self, parser):
         if parser.usage is SUPPRESS:
