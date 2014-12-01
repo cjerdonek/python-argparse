@@ -206,21 +206,18 @@ class _ActionCollector(_TraverserBase):
         self.actions = []
 
     def handle_group(self, group):
-        self._handle_children(group._children)
-
-    def handle_subparsers(self, subparsers):
-        actions = self.actions
         with self.indenting():
-            formatter = self.formatter
-
-            actions.append((self.current_indent, subparsers))
-            for subaction in subparsers._subcommands:
-                actions.append((self.current_indent, subaction))
+            self._handle_children(group._children)
 
     def handle_action(self, action):
         """Format a (non-subparsers) Action."""
-        with self.indenting():
-            self.actions.append((self.current_indent, action))
+        self.actions.append((self.current_indent, action))
+
+    def handle_subparsers(self, subparsers):
+        actions = self.actions
+        actions.append((self.current_indent, subparsers))
+        for subaction in subparsers._subcommands:
+            actions.append((self.current_indent, subaction))
 
 
 class _FormatTraverser(_TraverserBase):
@@ -262,7 +259,7 @@ class _FormatTraverser(_TraverserBase):
     def handle_action(self, action):
         """Format a (non-subparsers) Action."""
         formatter = self.formatter
-        formatter._action_to_parts(self.parts, action, traverser=self)
+        formatter._action_to_parts(self.parts, action, indent_size=self.current_indent)
 
     def handle_subparsers(self, subparsers):
         """Format a _SubParsersAction."""
@@ -270,7 +267,7 @@ class _FormatTraverser(_TraverserBase):
         formatter = self.formatter
         current_indent = self.current_indent
 
-        formatter._action_to_parts(parts, subparsers, traverser=self)
+        formatter._action_to_parts(parts, subparsers, indent_size=current_indent)
         # Sub-commands not in any group.
         with self.indenting():
             self._handle_children(subparsers._subcommands)
@@ -332,16 +329,24 @@ class HelpFormatter(object):
                 width = 80
             width -= 2
 
+        _max_help_position = min(max_help_position,
+                                 max(width - 20, indent_increment * 2))
+
         self._prog = prog
         self._indent_increment = indent_increment
-        self._max_help_position = max_help_position
-        self._max_help_position = min(max_help_position,
-                                      max(width - 20, indent_increment * 2))
+        self._max_help_position = _max_help_position
         self._width = width
-        self._action_max_length = 0
+        self._action_max_length = None
+        self.help_position = None
 
         self._whitespace_matcher = _re.compile(r'\s+')
         self._long_break_matcher = _re.compile(r'\n\n\n+')
+
+    def set_action_max(self, action_max):
+        self._action_max_length = action_max
+        help_position = min(self._max_help_position, action_max + 2)
+        self.help_width = max(self._width - help_position, 11)
+        self.help_position = help_position
 
     def _compute_max_action_length(self, obj):
         traverser = _ActionCollector(formatter=self)
@@ -379,9 +384,9 @@ class HelpFormatter(object):
             help = self._normalize_help(help)
         return help
 
-    # TODO: DRY this up with _format_children().
     def format(self, obj, indent_size=None):
-        self._action_max_length = self._compute_max_action_length(obj)
+        action_max = self._compute_max_action_length(obj)
+        self.set_action_max(action_max)
         traverser = _FormatTraverser(formatter=self, indent_size=indent_size)
         obj.handle(traverser)
         parts = traverser.parts
@@ -609,14 +614,9 @@ class HelpFormatter(object):
         # return the text
         return text
 
-    def _action_to_parts(self, parts, action, traverser):
+    def _action_to_parts(self, parts, action, indent_size):
         """Format an Action object for help display."""
-        indent_size = traverser.current_indent
-        # determine the required width and the entry label
-        # TODO: compute these in the constructor?
-        help_position = min(self._action_max_length + 2,
-                            self._max_help_position)
-        help_width = max(self._width - help_position, 11)
+        help_position = self.help_position
         action_width = help_position - indent_size - 2
         action_header = self._format_action_invocation(action)
 
@@ -641,6 +641,7 @@ class HelpFormatter(object):
         parts.append(action_header)
 
         # if there was help for the action, add lines of help text
+        help_width = self.help_width
         if action.help:
             help_text = self._expand_help(action)
             help_lines = self._split_lines(help_text, help_width)
