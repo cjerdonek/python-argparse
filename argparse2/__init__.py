@@ -199,9 +199,10 @@ class _TraverserBase(object):
             # Handle sub-commands and then sub-command groups.
             self._handle_children(subparsers._children)
 
+
 class _ActionCollector(_TraverserBase):
 
-    """A traverser to determine the "max action invocation length"."""
+    """A traverser for collecting data for the "max action length"."""
 
     def __init__(self, formatter):
         super().__init__(formatter=formatter)
@@ -218,6 +219,8 @@ class _ActionCollector(_TraverserBase):
 
 
 class _FormatTraverser(_TraverserBase):
+
+    """A traverser responsible for formatting."""
 
     def __init__(self, formatter, indent_size=None):
         super().__init__(formatter=formatter, indent_size=indent_size)
@@ -335,9 +338,9 @@ class HelpFormatter(object):
     def _compute_max_action_length(self, obj):
         traverser = _ActionCollector(formatter=self)
         obj.handle(traverser)
-        actions = traverser.actions
-        format = self._format_action_invocation
 
+        format = self._format_action_invocation
+        actions = traverser.actions
         # Add "0" to the iterator to prevent the following error:
         #   ValueError: max() arg is an empty sequence
         iterator = itertools.chain((indent + len(format(action))

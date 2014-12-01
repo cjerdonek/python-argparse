@@ -4,19 +4,25 @@ argparse2
 [![Build Status](https://travis-ci.org/cjerdonek/python-argparse.svg?branch=master)](https://travis-ci.org/cjerdonek/python-argparse)
 [![Coverage Status](https://img.shields.io/coveralls/cjerdonek/python-argparse.svg)](https://coveralls.io/r/cjerdonek/python-argparse?branch=master)
 
-This is a fork of Python's [`argparse`][argparse] module.
+This is a fork of the [`argparse`][argparse] module in the Python
+standard library.
 
-Some of the purposes of the fork are to improve the extensibility of
-the module, to simplify the code and improve its maintainability,
-and to add features, while preserving backwards compatibility for the
-most part.  The main work being done so far is refactoring in an effort
-to simplify the code base.
+The purposes of the fork include--
 
-Up to this point, all of the test cases in the original CPython
-implementation still pass.  We anticipate breaking backwards compatibility
-only in the case of warts and "documented bugs."
+* improving the extensibility of the module,
+* simplifying the code and improving its maintainability, and
+* adding features.
 
-The PyPI page for the project is [here][argparse2-pypi].
+We aim to preserve backwards compatibility for the most part.  We
+anticipate breaking backwards compatibility only in the case of warts
+and "documented bugs."
+
+The main work being done so far is simplifying the code base.  Up to
+this point, all of the test cases in the original CPython implementation
+continue to pass.
+
+The project is installable from PyPI.  The PyPI project page is
+[here][argparse2-pypi].
 
 
 Background
