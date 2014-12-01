@@ -169,6 +169,15 @@ class _TraverserBase(object):
         finally:
             self._dedent()
 
+    def _handle_children(self, children):
+        for child in children:
+            if child.suppress_help:
+                continue
+            try:
+                child.handle(self)
+            except:
+                raise Exception("child: %r" % child)
+
     def handle_group(self, arg_group):
         """Handle an _ArgumentGroup or _ParserGroup object.
 
@@ -181,10 +190,7 @@ class _TraverserBase(object):
     def handle_parser(self, parser):
         # _ArgumentGroup objects, for example positionals, optionals,
         # and user-defined groups.
-        for arg_group in parser._action_groups:
-            if arg_group.suppress_help:
-                continue
-            arg_group.handle(self)
+        self._handle_children(parser._action_groups)
         if self.current_indent != 0:
             raise AssertionError("current indent not zero: %d" % self.current_indent)
 
@@ -223,15 +229,6 @@ class _FormatTraverser(_TraverserBase):
         super().__init__(formatter=formatter, indent_size=indent_size)
         self.max_length = 0
         self.parts = []
-
-    def _handle_children(self, children):
-        for child in children:
-            if child.suppress_help:
-                continue
-            try:
-                child.handle(self)
-            except:
-                raise Exception("child: %r" % child)
 
     def handle_parser(self, parser):
         parts = self.parts
@@ -373,7 +370,8 @@ class HelpFormatter(object):
         return help
 
     def _format_children(self, children, indent_size=None):
-        """
+        """Return a string formatting the given children.
+
         The _action_max_length attribute must be set on self before
         calling this method.
         """
@@ -616,7 +614,7 @@ class HelpFormatter(object):
         """Format an Action object for help display."""
         indent_size = traverser.current_indent
         # determine the required width and the entry label
-        # TODO: compute this in the constructor?
+        # TODO: compute these in the constructor?
         help_position = min(self._action_max_length + 2,
                             self._max_help_position)
         help_width = max(self._width - help_position, 11)
