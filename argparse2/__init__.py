@@ -203,8 +203,8 @@ class _MaxActionTraverser(_TraverserBase):
         super().__init__(formatter=formatter)
         self.max_length = 0
 
-    def handle_group(self, arg_group):
-        self._handle_children(arg_group._children)
+    def handle_group(self, group):
+        self._handle_children(group._children)
 
     def handle_subparsers(self, subparsers):
         self.handle_action(subparsers)
@@ -244,10 +244,12 @@ class _FormatTraverser(_TraverserBase):
         parts = self.parts
         formatter = self.formatter
 
+        # Precompute the help contents so that we can skip the group if empty.
         with self.indenting():
-            # Only include the current group if it contains help.
-            inner_help = formatter._format_children(group._children,
-                                        indent_size=self.current_indent)
+            traverser = _FormatTraverser(formatter=formatter,
+                                         indent_size=self.current_indent)
+            traverser._handle_children(group._children)
+            inner_help = formatter._join_parts(traverser.parts)
         if not inner_help:
             return
 
@@ -368,17 +370,6 @@ class HelpFormatter(object):
         if help:
             help = self._normalize_help(help)
         return help
-
-    def _format_children(self, children, indent_size=None):
-        """Return a string formatting the given children.
-
-        The _action_max_length attribute must be set on self before
-        calling this method.
-        """
-        traverser = _FormatTraverser(formatter=self, indent_size=indent_size)
-        traverser._handle_children(children)
-        parts = traverser.parts
-        return self._join_parts(parts)
 
     # TODO: DRY this up with _format_children().
     def format(self, obj, indent_size=None):
