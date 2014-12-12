@@ -323,6 +323,14 @@ class _ActionFormatter(object):
             metavar = default_metavar
         return metavar
 
+    def _format_option_string(self, action, option_string):
+        help = option_string
+        if action.nargs != 0:
+            default = self.formatter._get_default_metavar_for_optional(action)
+            args_string = self._format_args(action, default)
+            help += ' %s' % args_string
+        return help
+
     # TODO: let the header be customized for a particular action.
     def make_header(self, action):
         """Return the header for the help text of an action.
@@ -339,16 +347,8 @@ class _ActionFormatter(object):
             metavar = self._make_metavar(action, default)
             return metavar
 
-        parts = []
-        for option_string in action.option_strings:
-            # TODO: make a method that formats an option string.
-            help = option_string
-            if action.nargs != 0:
-                default = formatter._get_default_metavar_for_optional(action)
-                args_string = self._format_args(action, default)
-                help += ' %s' % args_string
-            parts.append(help)
-
+        format = self._format_option_string
+        parts = [format(action, option_string) for option_string in action.option_strings]
         return ', '.join(parts)
 
 
@@ -620,6 +620,7 @@ class HelpFormatter(object):
 
         # collect all actions format strings
         parts = []
+        action_formatter = self.action_formatter
         for i, action in enumerate(actions):
 
             # suppressed arguments are marked with None
@@ -634,38 +635,21 @@ class HelpFormatter(object):
             # produce all arg strings
             elif action.is_positional:
                 default = self._get_default_metavar_for_positional(action)
-                part = self._format_args(action, default)
-
+                part = action_formatter._format_args(action, default)
                 # if it's in a group, strip the outer []
                 if action in group_actions:
                     if part[0] == '[' and part[-1] == ']':
                         part = part[1:-1]
-
                 # add the action string to the list
                 parts.append(part)
 
             # produce the first way to invoke the option in brackets
             else:
                 option_string = action.option_strings[0]
-
-                # TODO: DRY up the below with _ActionFormatter.make_header().
-
-                # if the Optional doesn't take a value, format is:
-                #    -s or --long
-                if action.nargs == 0:
-                    part = '%s' % option_string
-
-                # if the Optional takes a value, format is:
-                #    -s ARGS or --long ARGS
-                else:
-                    default = self._get_default_metavar_for_optional(action)
-                    args_string = self._format_args(action, default)
-                    part = '%s %s' % (option_string, args_string)
-
+                part = action_formatter._format_option_string(action, option_string)
                 # make it look optional if it's not required or in a group
                 if not action.required and action not in group_actions:
                     part = '[%s]' % part
-
                 # add the action string to the list
                 parts.append(part)
 
