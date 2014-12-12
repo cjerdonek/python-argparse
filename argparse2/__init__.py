@@ -634,25 +634,30 @@ class HelpFormatter(object):
         for line in help_lines:
             parts.append('%*s%s' % (help_position, '', line))
 
+    # TODO: let the header be customized for a particular action.
     def _format_action_help_header(self, action):
-        """Return the header for the help text of an action."""
+        """Return the header for the help text of an action.
+
+        For example, for non-positionals that do not take a value:
+           -s, --long
+        And for non-positionals that do take a value:
+           -s ARGS, --long ARGS
+
+        """
         if action.is_positional:
             default = self._get_default_metavar_for_positional(action)
             metavar = self._make_metavar(action, default)
             return metavar
 
         parts = []
-        # if the Optional doesn't take a value, format is:
-        #    -s, --long
-        if action.nargs == 0:
-            parts.extend(action.option_strings)
-        # if the Optional takes a value, format is:
-        #    -s ARGS, --long ARGS
-        else:
-            default = self._get_default_metavar_for_optional(action)
-            args_string = self._format_args(action, default)
-            for option_string in action.option_strings:
-                parts.append('%s %s' % (option_string, args_string))
+        for option_string in action.option_strings:
+            # TODO: make a method that formats an option string.
+            help = option_string
+            if action.nargs != 0:
+                default = self._get_default_metavar_for_optional(action)
+                args_string = self._format_args(action, default)
+                help += ' %s' % args_string
+            parts.append(help)
 
         return ', '.join(parts)
 
