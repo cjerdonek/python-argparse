@@ -276,6 +276,82 @@ class _FormatTraverser(_TraverserBase):
             parts.append(parser.epilog)
 
 
+# TODO: make this class independent of the formatter?
+class _ActionFormatter(object):
+
+    """Responsible for formatting an Action object."""
+
+    def __init__(self, formatter):
+        """
+        Arguments:
+          formatter: a HelpFormatter object.
+        """
+        self.formatter = formatter
+
+    def _to_tuple(self, obj, tuple_size):
+        """Convert the given object to a tuple if not already."""
+        if isinstance(obj, tuple):
+            return obj
+        return (obj, ) * tuple_size
+
+    def _format_args(self, action, default_metavar):
+        metavar = self._make_metavar(action, default_metavar)
+        if action.nargs is None:
+            result = '%s' % self._to_tuple(metavar, 1)
+        elif action.nargs == OPTIONAL:
+            result = '[%s]' % self._to_tuple(metavar, 1)
+        elif action.nargs == ZERO_OR_MORE:
+            result = '[%s [%s ...]]' % self._to_tuple(metavar, 2)
+        elif action.nargs == ONE_OR_MORE:
+            result = '%s [%s ...]' % self._to_tuple(metavar, 2)
+        elif action.nargs == REMAINDER:
+            result = '...'
+        elif action.nargs == PARSER:
+            result = '%s ...' % self._to_tuple(metavar, 1)
+        else:
+            formats = ['%s' for _ in range(action.nargs)]
+            result = ' '.join(formats) % self._to_tuple(metavar, action.nargs)
+        return result
+
+    def _make_metavar(self, action, default_metavar):
+        if action.metavar is not None:
+            metavar = action.metavar
+        elif action.choices is not None:
+            choice_strs = [str(choice) for choice in action.choices]
+            metavar = '{%s}' % ','.join(choice_strs)
+        else:
+            metavar = default_metavar
+        return metavar
+
+    # TODO: let the header be customized for a particular action.
+    def make_header(self, action):
+        """Return the header for the help text of an action.
+
+        For example, for non-positionals that do not take a value:
+           -s, --long
+        And for non-positionals that do take a value:
+           -s ARGS, --long ARGS
+
+        """
+        formatter = self.formatter
+        if action.is_positional:
+            default = formatter._get_default_metavar_for_positional(action)
+            metavar = self._make_metavar(action, default)
+            return metavar
+
+        parts = []
+        for option_string in action.option_strings:
+            # TODO: make a method that formats an option string.
+            help = option_string
+            if action.nargs != 0:
+                default = formatter._get_default_metavar_for_optional(action)
+                args_string = self._format_args(action, default)
+                help += ' %s' % args_string
+            parts.append(help)
+
+        return ', '.join(parts)
+
+
 class HelpFormatter(object):
     """Formatter for generating usage messages and argument help strings.
 
@@ -342,6 +418,7 @@ class HelpFormatter(object):
 
         self._whitespace_matcher = _re.compile(r'\s+')
         self._long_break_matcher = _re.compile(r'\n\n\n+')
+        self.action_formatter = _ActionFormatter(self)
 
     def set_action_max(self, action_max):
         self._action_max_length = action_max
@@ -354,7 +431,7 @@ class HelpFormatter(object):
         traverser = _ActionCollector(formatter=self)
         obj.handle(traverser)
 
-        format = self._format_action_help_header
+        format = self.action_formatter.make_header
         actions = traverser.actions
         # Add "0" to the iterator to prevent the following error:
         #   ValueError: max() arg is an empty sequence
@@ -509,6 +586,9 @@ class HelpFormatter(object):
         # prefix with 'usage:'
         return '%s%s\n\n' % (prefix, usage)
 
+    def _format_args(self, action, default_metavar):
+        return self.action_formatter._format_args(action, default_metavar)
+
     def _format_actions_usage(self, actions, groups):
         # find group indices and identify actions in groups
         group_actions = set()
@@ -568,6 +648,8 @@ class HelpFormatter(object):
             else:
                 option_string = action.option_strings[0]
 
+                # TODO: DRY up the below with _ActionFormatter.make_header().
+
                 # if the Optional doesn't take a value, format is:
                 #    -s or --long
                 if action.nargs == 0:
@@ -608,7 +690,7 @@ class HelpFormatter(object):
 
     def _action_to_parts(self, parts, action, indent_size):
         """Format an Action object for help display."""
-        action_header = self._format_action_help_header(action)
+        action_header = self.action_formatter.make_header(action)
         # no help: a single line
         if not action.help:
             tup = indent_size, '', action_header
@@ -633,68 +715,6 @@ class HelpFormatter(object):
         parts.append(action_header)
         for line in help_lines:
             parts.append('%*s%s' % (help_position, '', line))
-
-    # TODO: let the header be customized for a particular action.
-    def _format_action_help_header(self, action):
-        """Return the header for the help text of an action.
-
-        For example, for non-positionals that do not take a value:
-           -s, --long
-        And for non-positionals that do take a value:
-           -s ARGS, --long ARGS
-
-        """
-        if action.is_positional:
-            default = self._get_default_metavar_for_positional(action)
-            metavar = self._make_metavar(action, default)
-            return metavar
-
-        parts = []
-        for option_string in action.option_strings:
-            # TODO: make a method that formats an option string.
-            help = option_string
-            if action.nargs != 0:
-                default = self._get_default_metavar_for_optional(action)
-                args_string = self._format_args(action, default)
-                help += ' %s' % args_string
-            parts.append(help)
-
-        return ', '.join(parts)
-
-    def _make_metavar(self, action, default_metavar):
-        if action.metavar is not None:
-            metavar = action.metavar
-        elif action.choices is not None:
-            choice_strs = [str(choice) for choice in action.choices]
-            metavar = '{%s}' % ','.join(choice_strs)
-        else:
-            metavar = default_metavar
-        return metavar
-
-    def _to_tuple(self, obj, tuple_size):
-        """Convert the given object to a tuple if not already."""
-        if isinstance(obj, tuple):
-            return obj
-        return (obj, ) * tuple_size
-
-    def _format_args(self, action, default_metavar):
-        metavar = self._make_metavar(action, default_metavar)
-        if action.nargs is None:
-            result = '%s' % self._to_tuple(metavar, 1)
-        elif action.nargs == OPTIONAL:
-            result = '[%s]' % self._to_tuple(metavar, 1)
-        elif action.nargs == ZERO_OR_MORE:
-            result = '[%s [%s ...]]' % self._to_tuple(metavar, 2)
-        elif action.nargs == ONE_OR_MORE:
-            result = '%s [%s ...]' % self._to_tuple(metavar, 2)
-        elif action.nargs == REMAINDER:
-            result = '...'
-        elif action.nargs == PARSER:
-            result = '%s ...' % self._to_tuple(metavar, 1)
-        else:
-            formats = ['%s' for _ in range(action.nargs)]
-            result = ' '.join(formats) % self._to_tuple(metavar, action.nargs)
-        return result
 
     def _expand_help(self, action):
         params = dict(vars(action), prog=self._prog)
