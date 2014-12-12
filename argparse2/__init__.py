@@ -350,10 +350,11 @@ class HelpFormatter(object):
         self.help_position = help_position
 
     def _compute_max_action_length(self, obj):
+
         traverser = _ActionCollector(formatter=self)
         obj.handle(traverser)
 
-        format = self._format_action_invocation
+        format = self._format_action_help_header
         actions = traverser.actions
         # Add "0" to the iterator to prevent the following error:
         #   ValueError: max() arg is an empty sequence
@@ -438,10 +439,8 @@ class HelpFormatter(object):
             optionals = []
             positionals = []
             for action in actions:
-                if action.option_strings:
-                    optionals.append(action)
-                else:
-                    positionals.append(action)
+                seq = positionals if action.is_positional else optionals
+                seq.append(action)
 
             # build full usage string
             format = self._format_actions_usage
@@ -553,7 +552,7 @@ class HelpFormatter(object):
                     inserts.pop(i + 1)
 
             # produce all arg strings
-            elif not action.option_strings:
+            elif action.is_positional:
                 default = self._get_default_metavar_for_positional(action)
                 part = self._format_args(action, default)
 
@@ -609,7 +608,7 @@ class HelpFormatter(object):
 
     def _action_to_parts(self, parts, action, indent_size):
         """Format an Action object for help display."""
-        action_header = self._format_action_invocation(action)
+        action_header = self._format_action_help_header(action)
         # no help: a single line
         if not action.help:
             tup = indent_size, '', action_header
@@ -635,8 +634,9 @@ class HelpFormatter(object):
         for line in help_lines:
             parts.append('%*s%s' % (help_position, '', line))
 
-    def _format_action_invocation(self, action):
-        if not action.option_strings:
+    def _format_action_help_header(self, action):
+        """Return the header for the help text of an action."""
+        if action.is_positional:
             default = self._get_default_metavar_for_positional(action)
             metavar = self._make_metavar(action, default)
             return metavar
@@ -896,6 +896,10 @@ class Action(_AttributeHolder):
         self.required = required
         self.help = help
         self.metavar = metavar
+
+    @property
+    def is_positional(self):
+        return not self.option_strings
 
     @property
     def suppress_help(self):
@@ -1890,14 +1894,10 @@ class ArgumentParser(_AttributeHolder, _ActionsContainer):
         return action
 
     def _get_optional_actions(self):
-        return [action
-                for action in self._actions
-                if action.option_strings]
+        return [action for action in self._actions if not action.is_positional]
 
     def _get_positional_actions(self):
-        return [action
-                for action in self._actions
-                if not action.option_strings]
+        return [action for action in self._actions if action.is_positional]
 
     # =====================================
     # Command line argument parsing methods
@@ -2423,7 +2423,7 @@ class ArgumentParser(_AttributeHolder, _ActionsContainer):
         # when nargs='*' on a positional, if there were no command-line
         # args, use the default if it is anything other than None
         elif (not arg_strings and action.nargs == ZERO_OR_MORE and
-              not action.option_strings):
+              action.is_positional):
             if action.default is not None:
                 value = action.default
             else:
