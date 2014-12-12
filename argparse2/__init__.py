@@ -288,14 +288,21 @@ class _ActionFormatter(object):
         """
         self.formatter = formatter
 
+    def _make_metavar(self, action, default_metavar):
+        if action.metavar is not None:
+            return action.metavar
+        if action.choices is not None:
+            choice_strs = [str(choice) for choice in action.choices]
+            return '{%s}' % ','.join(choice_strs)
+        return default_metavar
+
     def _to_tuple(self, obj, tuple_size):
         """Convert the given object to a tuple if not already."""
         if isinstance(obj, tuple):
             return obj
         return (obj, ) * tuple_size
 
-    def _format_args(self, action, default_metavar):
-        metavar = self._make_metavar(action, default_metavar)
+    def _raw_format_args(self, action, metavar):
         if action.nargs is None:
             result = '%s' % self._to_tuple(metavar, 1)
         elif action.nargs == OPTIONAL:
@@ -313,15 +320,9 @@ class _ActionFormatter(object):
             result = ' '.join(formats) % self._to_tuple(metavar, action.nargs)
         return result
 
-    def _make_metavar(self, action, default_metavar):
-        if action.metavar is not None:
-            metavar = action.metavar
-        elif action.choices is not None:
-            choice_strs = [str(choice) for choice in action.choices]
-            metavar = '{%s}' % ','.join(choice_strs)
-        else:
-            metavar = default_metavar
-        return metavar
+    def _format_args(self, action, default_metavar):
+        metavar = self._make_metavar(action, default_metavar)
+        return self._raw_format_args(action, metavar)
 
     def _format_option_string(self, action, option_string):
         help = option_string
@@ -634,8 +635,8 @@ class HelpFormatter(object):
 
             # produce all arg strings
             elif action.is_positional:
-                default = self._get_default_metavar_for_positional(action)
-                part = action_formatter._format_args(action, default)
+                default = action_formatter.make_header(action)
+                part = action_formatter._raw_format_args(action, default)
                 # if it's in a group, strip the outer []
                 if action in group_actions:
                     if part[0] == '[' and part[-1] == ']':
