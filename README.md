@@ -3,6 +3,8 @@ argparse2
 
 [![Build Status](https://travis-ci.org/cjerdonek/python-argparse.svg?branch=master)](https://travis-ci.org/cjerdonek/python-argparse)
 [![Coverage Status](https://img.shields.io/coveralls/cjerdonek/python-argparse.svg)](https://coveralls.io/r/cjerdonek/python-argparse?branch=master)
+[![Documentation Status](https://readthedocs.org/projects/argparse2/badge/?version=latest)](https://readthedocs.org/projects/argparse2/?badge=latest)
+
 
 This is a fork of the the Python standard library's [`argparse`][argparse]
 module.
