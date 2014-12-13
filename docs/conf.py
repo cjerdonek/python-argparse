@@ -45,7 +45,9 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'argparse2'
-copyright = '2014, Chris Jerdonek'
+copyright = ('2014, Chris Jerdonek.  All Rights Reserved.  '
+             '© Copyright 2001-2014, Python Software Foundation.  '
+             'All Rights Reserved')
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the

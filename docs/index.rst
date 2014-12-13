@@ -3,8 +3,12 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to argparse2's documentation!
-=====================================
+argparse2 — Parser for command-line options, arguments and sub-commands
+=======================================================================
+
+``argparse2`` is distributed for free on PyPI_ and the source code
+is hosted on GitHub_.  Documentation is hosted on `Read the Docs`_.
+
 
 Contents:
 
@@ -20,3 +24,7 @@ Indices and tables
 * :ref:`modindex`
 * :ref:`search`
 
+
+.. _GitHub: https://github.com/cjerdonek/python-argparse
+.. _PyPI: https://pypi.python.org/pypi/argparse2
+.. _Read the Docs: http://argparse2.readthedocs.org
