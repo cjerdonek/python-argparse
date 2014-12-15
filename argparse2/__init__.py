@@ -288,7 +288,15 @@ class _ActionFormatter(object):
         """
         self.formatter = formatter
 
-    def _make_metavar(self, action, default_metavar):
+    def _get_default_metavar(self, action):
+        formatter = self.formatter
+        if action.is_positional:
+            func = formatter._get_default_metavar_for_positional
+        else:
+            func = formatter._get_default_metavar_for_optional
+        return func(action)
+
+    def _make_metavar_from_default(self, action, default_metavar):
         if action.metavar is not None:
             return action.metavar
         if action.choices is not None:
@@ -296,13 +304,18 @@ class _ActionFormatter(object):
             return '{%s}' % ','.join(choice_strs)
         return default_metavar
 
+    def _make_metavar(self, action):
+        default_metavar = self._get_default_metavar(action)
+        metavar = self._make_metavar_from_default(action, default_metavar)
+        return metavar
+
     def _to_tuple(self, obj, tuple_size):
         """Convert the given object to a tuple if not already."""
         if isinstance(obj, tuple):
             return obj
         return (obj, ) * tuple_size
 
-    def _raw_format_args(self, action, metavar):
+    def _format_args(self, action, metavar):
         if action.nargs is None:
             result = '%s' % self._to_tuple(metavar, 1)
         elif action.nargs == OPTIONAL:
@@ -320,26 +333,16 @@ class _ActionFormatter(object):
             result = ' '.join(formats) % self._to_tuple(metavar, action.nargs)
         return result
 
-    def _format_args(self, action, default_metavar):
-        metavar = self._make_metavar(action, default_metavar)
-        return self._raw_format_args(action, metavar)
-
-    def _make_positional_metavar(self, action):
-        default = self.formatter._get_default_metavar_for_positional(action)
-        metavar = self._make_metavar(action, default)
-        return metavar
-
-    def _format_action_positional(self, action):
-        metavar = self._make_positional_metavar(action)
-        help = self._raw_format_args(action, metavar)
+    def _make_action_usage_positional(self, action):
+        metavar = self._make_metavar(action)
+        help = self._format_args(action, metavar)
         return help
 
-    def _format_action_non_positional(self, action, option_string):
+    def _make_action_usage_option_string(self, action, option_string):
         help = option_string
         if action.nargs != 0:
-            metavar = self.formatter._get_default_metavar_for_optional(action)
-            metavar = self._make_metavar(action, default_metavar)
-            args_string = self._raw_format_args(action, metavar)
+            metavar = self._make_metavar(action)
+            args_string = self._format_args(action, metavar)
             help += ' %s' % args_string
         return help
 
@@ -356,10 +359,10 @@ class _ActionFormatter(object):
 
         """
         if action.is_positional:
-            metavar = self._make_positional_metavar(action)
+            metavar = self._make_metavar(action)
             return metavar
 
-        format = self._format_action_non_positional
+        format = self._make_action_usage_option_string
         parts = [format(action, option_string) for option_string in action.option_strings]
         return ', '.join(parts)
 
@@ -599,7 +602,9 @@ class HelpFormatter(object):
         return '%s%s\n\n' % (prefix, usage)
 
     def _format_args(self, action, default_metavar):
-        return self.action_formatter._format_args(action, default_metavar)
+        action_formatter = self.action_formatter
+        metavar = action_formatter._make_metavar_from_default(action, default_metavar)
+        return action_formatter._format_args(action, metavar)
 
     def _format_actions_usage(self, actions, groups):
         # find group indices and identify actions in groups
@@ -646,7 +651,7 @@ class HelpFormatter(object):
 
             # produce all arg strings
             elif action.is_positional:
-                part = action_formatter._format_action_positional(action)
+                part = action_formatter._make_action_usage_positional(action)
                 # if it's in a group, strip the outer []
                 if action in group_actions:
                     if part[0] == '[' and part[-1] == ']':
@@ -655,7 +660,7 @@ class HelpFormatter(object):
             # produce the first way to invoke the option in brackets
             else:
                 option_string = action.option_strings[0]
-                part = action_formatter._format_action_non_positional(action, option_string)
+                part = action_formatter._make_action_usage_option_string(action, option_string)
                 # make it look optional if it's not required or in a group
                 if not action.required and action not in group_actions:
                     part = '[%s]' % part
