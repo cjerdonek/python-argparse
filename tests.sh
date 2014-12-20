@@ -1,1 +1,1 @@
-coverage run --source=argparse2 -m unittest && coverage report
+coverage run --source=argparse2 scripts/run_tests.py && coverage report
