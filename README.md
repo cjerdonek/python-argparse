@@ -54,16 +54,16 @@ Install
     $ pip install argparse2
 
 
-Testing
--------
+Development
+-----------
 
-Setup:
+To develop locally:
 
-    $ pip install coveralls
+    $ pip install -e .[dev,test]
 
-From the repo root:
+To run tests:
 
-    $ python -m unittest
+    $ ./tests.sh
 
 
 Author
