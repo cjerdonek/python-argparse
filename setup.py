@@ -18,7 +18,8 @@ setup(
     url='https://github.com/cjerdonek/python-argparse',
 
     description="Fork of Python's argparse to add features and simplify its code",
-    keywords='argparse argparse2 command line parser parsing',
+    keywords=('argparse argparse2 command-line "command line" parser parsing '
+              'getopt optparse')
 
     author='Chris Jerdonek',
     author_email='chris.jerdonek@gmail.com',
