@@ -6,7 +6,7 @@ argparse2
 [![Documentation Status](https://readthedocs.org/projects/argparse2/badge/?version=latest)](https://readthedocs.org/projects/argparse2/?badge=latest)
 
 
-This is a fork of the the Python standard library's [`argparse`][argparse]
+`argparse2` is a fork of the the Python standard library's [`argparse`][argparse]
 module.  The [project page][argparse2_github] is on GitHub.
 
 ``argparse2`` is distributed for free on [PyPI][argparse2_pypi] and the
@@ -66,14 +66,14 @@ Author
 ------
 
 The author of the fork is Chris Jerdonek (<chris.jerdonek@gmail.com>).
+
 The original author of argparse is Steven J. Bethard.
 
 
 License
 -------
 
-This project is licensed under a BSD 3-Clause License.  For complete
-license information, see the [`LICENSE`](LICENSE) file.
+For license information, see the [`LICENSE`](LICENSE) file.
 
 
 Copyright
