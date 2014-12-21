@@ -356,7 +356,6 @@ class _ActionFormatter(object):
              -s, --long
         2) Non-positionals that do take a value:
              -s ARGS, --long ARGS
-
         """
         if action.is_positional:
             metavar = self._make_metavar(action)
