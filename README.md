@@ -6,7 +6,7 @@ argparse2
 [![Documentation Status](https://readthedocs.org/projects/argparse2/badge/?version=latest)](https://readthedocs.org/projects/argparse2/?badge=latest)
 
 
-`argparse2` is a fork of the the Python standard library's [`argparse`][argparse]
+`argparse2` is a fork of the Python standard library's [`argparse`][argparse]
 module.
 
 The [project page][argparse2_github] and source code are on GitHub.
