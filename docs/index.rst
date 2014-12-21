@@ -3,8 +3,11 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-argparse2 — Parser for command-line options, arguments and sub-commands
-=======================================================================
+argparse2 — Updated module for creating a command-line interface
+================================================================
+
+``argparse2`` is a Python library that is a fork of the the Python
+standard library's [`argparse`][argparse] module.
 
 ``argparse2`` is distributed for free on PyPI_ and the source code
 is hosted on GitHub_.  Documentation is hosted on `Read the Docs`_.
@@ -16,6 +19,7 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
+   developing
 
 
 Indices and tables
