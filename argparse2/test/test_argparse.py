@@ -9,7 +9,12 @@ import sys
 import textwrap
 import tempfile
 import unittest
-import argparse2 as argparse
+
+import argparse2.test
+
+# The "module_under_test" variable gets set by argparse2's test runner.
+# This lets us run the tests against either argparse or argparse2.
+argparse = argparse2.test.module_under_test
 
 from io import StringIO
 
