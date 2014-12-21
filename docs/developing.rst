@@ -30,12 +30,13 @@ Writing tests
 -------------
 
 The repository contains two types of tests: the original unit tests
-carried over from CPython's argparse and new argparse2-specific tests.
+carried over from CPython's ``argparse`` and new ``argparse2``-specific
+tests.
 
-The original ``argparse`` tests are in a single file copied from
-the CPython repository and then slightly modified.  New tests should not
-be added to this file.  This simplifies keeping the upstream tests in
-synch with this project.
+The original ``argparse`` tests are in a single file copied from the CPython
+repository (and modified slightly to support importing ``argparse2`` instead
+of ``argparse``.   New tests should not be added to this file. This simplifies
+keeping the upstream tests in synch with this project.
 
 
 Building documentation
