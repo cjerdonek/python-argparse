@@ -7,7 +7,11 @@ argparse2
 
 
 This is a fork of the the Python standard library's [`argparse`][argparse]
-module.
+module.  The [project page][argparse2_github] is on GitHub.
+
+``argparse2`` is distributed for free on [PyPI][argparse2_pypi] and the
+source code is hosted on [GitHub][argparse2_github].  Project documentation
+is hosted on [Read the Docs][argparse2_docs].
 
 The purposes of the fork include--
 
@@ -22,9 +26,6 @@ and "documented bugs."
 The main work being done so far is simplifying the code base.  Up to
 this point, all of the test cases in the original CPython implementation
 continue to pass.
-
-The project is installable from PyPI.  The PyPI project page is
-[here][argparse2-pypi].
 
 
 Background
@@ -54,16 +55,11 @@ Install
     $ pip install argparse2
 
 
-Development
------------
+Contributing
+------------
 
-To develop locally:
-
-    $ pip install -e .[dev,test]
-
-To run tests:
-
-    $ ./tests.sh
+For information on developing and contributing to `argparse2`, see
+the [development docs][argparse2_docs_dev]
 
 
 Author
@@ -97,5 +93,8 @@ Copyright (c) 1991-1995 Stichting Mathematisch Centrum.  All rights
 reserved.
 
 
-[argparse]: https://docs.python.org/3/library/argparse.html
-[argparse2-pypi]: https://pypi.python.org/pypi/argparse2
+[argparse]: https://docs.python.org/library/argparse.html
+[argparse2_docs]: http://argparse2.readthedocs.org/en/latest/index.html
+[argparse2_docs_dev]: http://argparse2.readthedocs.org/en/latest/developing.html
+[argparse2_github]: https://github.com/cjerdonek/python-argparse
+[argparse2_pypi]: https://pypi.python.org/pypi/argparse2
