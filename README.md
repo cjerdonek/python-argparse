@@ -7,11 +7,11 @@ argparse2
 
 
 `argparse2` is a fork of the the Python standard library's [`argparse`][argparse]
-module.  The [project page][argparse2_github] is on GitHub.
+module.
 
-``argparse2`` is distributed for free on [PyPI][argparse2_pypi] and the
-source code is hosted on [GitHub][argparse2_github].  Project documentation
-is hosted on [Read the Docs][argparse2_docs].
+The [project page][argparse2_github] and source code are on GitHub.
+``argparse2`` is distributed for free on [PyPI][argparse2_pypi].
+Project documentation is hosted on [Read the Docs][argparse2_docs].
 
 The purposes of the fork include--
 
