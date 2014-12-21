@@ -10,16 +10,15 @@ import textwrap
 import tempfile
 import unittest
 
-import argparse2.test
-
-# The "module_under_test" variable gets set by argparse2's test runner.
-# This lets us run the tests against either argparse or argparse2.
-argparse = argparse2.test.module_under_test
-
 from io import StringIO
 
 from test import support
 from unittest import mock
+
+from argparse2.test import support as ap2_support
+
+argparse = ap2_support.get_argparse_under_test()
+
 class StdIOBuffer(StringIO):
     pass
 
