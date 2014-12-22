@@ -16,11 +16,13 @@ files forked were--
 * Lib/test_argparse.py
 * Doc/library/argparse.rst
 
-For a summary of the changes since the fork, see the CHANGELOG file
-included in the source distribution.
+For a summary of the changes since the fork, see the "Summary of changes"
+section [1] of the documentation.
 
 Chris Jerdonek added a BSD 3-Clause License at the time of forking.
 The licenses prior to that are also retained below.
+
+[1] http://argparse2.readthedocs.org/en/latest/changelog.html
 
 
 B. LICENSE ADDED AFTER FORKING FROM CPYTHON

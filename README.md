@@ -40,7 +40,8 @@ have "one foot in the grave."
 This project was started to break free of those constraints and breathe
 new life into argparse.  The module was forked from the tip of the
 CPython tree (Python 3.5.0 alpha 1) on November 27, 2014.  See the
-[`CHANGELOG`](CHANGELOG) file for more details.
+[Summary of Changes][argparse2_changelog] section of the documentation
+for more information.
 
 
 Requirements
@@ -94,6 +95,7 @@ reserved.
 
 
 [argparse]: https://docs.python.org/library/argparse.html
+[argparse2_changelog]: http://argparse2.readthedocs.org/en/latest/changelog.html
 [argparse2_docs]: http://argparse2.readthedocs.org/en/latest/index.html
 [argparse2_docs_dev]: http://argparse2.readthedocs.org/en/latest/developing.html
 [argparse2_github]: https://github.com/cjerdonek/python-argparse
