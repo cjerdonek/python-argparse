@@ -1,5 +1,5 @@
-Contributing to argparse2
-=========================
+``argparse2`` — How to contribute
+=================================
 
 This page contains information for those contributing to ``argparse2``.
 
@@ -35,7 +35,7 @@ tests.
 
 The original ``argparse`` tests are in a single file copied from the CPython
 repository (and modified slightly to support importing ``argparse2`` instead
-of ``argparse``.   New tests should not be added to this file. This simplifies
+of ``argparse``).   New tests should not be added to this file. This simplifies
 keeping the upstream tests in synch with this project.
 
 

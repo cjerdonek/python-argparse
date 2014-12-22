@@ -3,8 +3,8 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-argparse2 — Updated library for creating command-line interfaces
-================================================================
+``argparse2`` — Updated library for creating command-line interfaces
+====================================================================
 
 ``argparse2`` is a Python library that is a fork of the the Python
 standard library's argparse_ module.  The `project page`_ is on GitHub.
@@ -20,6 +20,7 @@ Contents:
    :maxdepth: 2
 
    developing
+   changelog
 
 
 Indices and tables
